@@ -147,6 +147,7 @@ public class GuiModConfig extends CyvGui {
 
         // mpk
         PanelUtils.addSpace(panels, this);
+        PanelUtils.addToggle(panels, "rawInput", "Raw Input", this);
         PanelUtils.addToggle(panels, "sendLbChatOffset", "Send Landing Offset", this);
         PanelUtils.addToggle(panels, "sendMmChatOffset", "Send Momentum Offset", this);
         PanelUtils.addToggle(panels, "highlightLanding", "Highlight Landing Blocks", this);

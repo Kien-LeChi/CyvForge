@@ -77,7 +77,7 @@ public class GuiMPK extends CyvGui {
                 sr.getScaledHeight() / 2 - sizeY / 2 + 40, 100, 15);
         this.macroButton.setEnabled(Minecraft.getMinecraft().isSingleplayer());
 
-        this.presetsButton = new SubButton("HUD Presets", sr.getScaledWidth() / 2 + sizeX / 2 + 50,
+        this.presetsButton = new SubButton("Presets", sr.getScaledWidth() / 2 + sizeX / 2 + 50,
                 sr.getScaledHeight() / 2 - sizeY / 2 + 60, 100, 15);
         this.presetsButton.setEnabled(true);
 

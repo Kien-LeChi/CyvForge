@@ -94,17 +94,10 @@ public class GuiEditChatMacro extends CyvGui {
         fontRendererObj.drawString(keysDisplay, x + 15, fieldY + 4, listening ? ACTIVE_COLOR : 0xFFFFFFFF);
 
         int buttonsY = y + 128 + dynamicOffset;
-        int btnWidth = 95;
 
-        int typeX = x + 10;
-        GuiUtils.drawRoundedRect(typeX, buttonsY, typeX + btnWidth, buttonsY + 15, 2, INACTIVE_KEY_BG);
-        GuiUtils.drawRectOutline(typeX, buttonsY, typeX + btnWidth, buttonsY + 15, BORDER_COLOR);
-        GuiUtils.drawCenteredString("Type: " + (hk.isClient ? "Client" : "Server"), typeX + (btnWidth / 2), buttonsY + 4, 0xFFFFFFFF, false);
-
-        int chainX = x + 115;
-        GuiUtils.drawRoundedRect(chainX, buttonsY, chainX + btnWidth, buttonsY + 15, 2, INACTIVE_KEY_BG);
-        GuiUtils.drawRectOutline(chainX, buttonsY, chainX + btnWidth, buttonsY + 15, BORDER_COLOR);
-        GuiUtils.drawCenteredString("Chain: " + (hk.isChain ? "On" : "Off"), chainX + (btnWidth / 2), buttonsY + 4, 0xFFFFFFFF, false);
+        GuiUtils.drawRoundedRect(x + 10, buttonsY, x + 210, buttonsY + 15, 2, INACTIVE_KEY_BG);
+        GuiUtils.drawRectOutline(x + 10, buttonsY, x + 210, buttonsY + 15, BORDER_COLOR);
+        GuiUtils.drawCenteredString("Chain Mode: " + (hk.isChain ? "On" : "Off"), x + 110, buttonsY + 4, 0xFFFFFFFF, false);
 
         if (hk.isChain) {
             int modeY = buttonsY + 25;
@@ -197,11 +190,8 @@ public class GuiEditChatMacro extends CyvGui {
 
         if (btn == 0 || btn == 1) {
             int buttonsY = y + 128 + dynamicOffset;
-            int btnWidth = 95;
-            if (mx >= x + 10 && mx <= x + 10 + btnWidth && my >= buttonsY && my <= buttonsY + 15) {
-                hk.isClient = !hk.isClient; return;
-            }
-            if (mx >= x + 115 && mx <= x + 115 + btnWidth && my >= buttonsY && my <= buttonsY + 15) {
+
+            if (mx >= x + 10 && mx <= x + 210 && my >= buttonsY && my <= buttonsY + 15) {
                 hk.isChain = !hk.isChain; return;
             }
             if (hk.isChain) {

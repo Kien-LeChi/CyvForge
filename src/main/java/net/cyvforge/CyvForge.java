@@ -11,6 +11,7 @@ import net.cyvforge.event.events.*;
 import net.cyvforge.hud.HUDManager;
 import net.cyvforge.keybinding.ChatMacro.ChatMacroListener;
 import net.cyvforge.keybinding.ChatMacro.ChatMacroManager;
+import net.cyvforge.util.CyvMouseHelper;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
@@ -33,7 +34,7 @@ import java.util.List;
 @Mod(modid = CyvForge.MODID, version = CyvForge.VERSION)
 public class CyvForge {
 	public static final String MODID = "cyvforge";
-	public static final String VERSION = "1.10";
+	public static final String VERSION = "1.10.1";
 
 	public static CyvClientConfig config = new CyvClientConfig();
 	public static DecimalFormat df = new DecimalFormat("#");
@@ -69,11 +70,8 @@ public class CyvForge {
 		MinecraftForge.EVENT_BUS.register(new DiscordRPCEventManager());
 		MinecraftForge.EVENT_BUS.register(new InputHistoryManager());
 
-		if (CyvClientConfig.getBoolean("fullbright", true)) {
-			Minecraft.getMinecraft().gameSettings.gammaSetting = 1000f;
-		} else {
-			Minecraft.getMinecraft().gameSettings.gammaSetting = 1.0f;
-		}
+		Minecraft.getMinecraft().gameSettings.gammaSetting = CyvClientConfig.getBoolean("fullbright", true) ? 1000f : 1.0f;
+		Minecraft.getMinecraft().mouseHelper = new CyvMouseHelper();
 
 		LogManager.getLogger().info("CyvForge mod initialized!");
 

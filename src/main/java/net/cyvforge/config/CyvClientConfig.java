@@ -27,7 +27,7 @@ public class CyvClientConfig {
         configFields.put("trimZeroes", new ConfigValue<Boolean>(true));
 
         // parkour
-        configFields.put("showMilliseconds", new ConfigValue<Boolean>(true));
+        configFields.put("rawInput", new ConfigValue<Boolean>(false));
 
         configFields.put("sendLbChatOffset", new ConfigValue<Boolean>(false));
         configFields.put("sendMmChatOffset", new ConfigValue<Boolean>(false));
@@ -35,10 +35,11 @@ public class CyvClientConfig {
         configFields.put("highlightLanding", new ConfigValue<Boolean>(false));
         configFields.put("highlightLandingCond", new ConfigValue<Boolean>(false));
         configFields.put("momentumPbCancelling", new ConfigValue<Boolean>(false));
-        configFields.put("keystrokesScale", new ConfigValue<Double>(1.0));
-        configFields.put("keystrokesSize", new ConfigValue<Integer>(66));
 
         // label specific
+        configFields.put("showMilliseconds", new ConfigValue<Boolean>(true));
+        configFields.put("keystrokesScale", new ConfigValue<Double>(1.0));
+        configFields.put("keystrokesSize", new ConfigValue<Integer>(66));
         configFields.put("showFacingAxis", new ConfigValue<Boolean>(false));
         configFields.put("frameBased", new ConfigValue<Boolean>(false));
         configFields.put("WADdisplay", new ConfigValue<Boolean>(false));
@@ -149,6 +150,10 @@ public class CyvClientConfig {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+
+        public void reset() {
+            this.value = this.defaultValue;
         }
     }
 

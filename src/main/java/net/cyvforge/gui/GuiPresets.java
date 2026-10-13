@@ -2,6 +2,9 @@ package net.cyvforge.gui;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import net.cyvforge.CyvForge;
 import net.cyvforge.config.CyvClientConfig;
 import net.cyvforge.event.ConfigLoader;
@@ -12,229 +15,313 @@ import net.cyvforge.util.GuiUtils;
 import net.cyvforge.util.defaults.CyvGui;
 import net.cyvforge.util.HUDPreset;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiTextField;
-import org.lwjgl.input.Keyboard;
-import java.io.*;
-import java.util.ArrayList;
 import net.minecraft.client.gui.Gui;
-import org.lwjgl.opengl.GL11;
+import net.minecraft.client.gui.GuiTextField;
+import net.minecraft.client.settings.KeyBinding;
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
+import org.lwjgl.opengl.GL11;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class GuiPresets extends CyvGui {
-    int sizeX = 220;
-    int sizeY = 220;
+    int sizeX = 220, sizeY = 240;
     public ArrayList<PresetLine> presetLines = new ArrayList<>();
-    SubButton addNewButton;
-    SubButton backBtn;
-    File presetDir;
-    float scroll = 0;
-    float vScroll = 0;
+    SubButton addNewButton, backBtn;
+    File hudPresetDir, kbPresetDir;
+    float scroll = 0, vScroll = 0;
     int maxScroll = 0;
 
+    public enum PresetType { HUD, KEYBINDS }
+    public static PresetType currentTab = PresetType.HUD;
+
+    public static class KeybindPreset {
+        public String presetName;
+        public Map<String, Integer> keybinds = new HashMap<>();
+        public KeybindPreset() {}
+        public KeybindPreset(String name) { this.presetName = name; }
+    }
+
     public GuiPresets() {
-        super("HUD Presets");
-        this.presetDir = new File(Minecraft.getMinecraft().mcDataDir, "config/cyvforge/presets");
-        if (!presetDir.exists()) presetDir.mkdirs();
+        super("HUD & Keybind Presets");
+        this.hudPresetDir = new File(mc.mcDataDir, "config/cyvforge/presets");
+        this.kbPresetDir = new File(mc.mcDataDir, "config/cyvforge/keybinds");
+        if (!hudPresetDir.exists()) hudPresetDir.mkdirs();
+        if (!kbPresetDir.exists()) kbPresetDir.mkdirs();
+    }
+
+    private static File getKbSelFile() {
+        return new File(new File(Minecraft.getMinecraft().mcDataDir, "config/cyvforge/keybinds"), ".selected");
+    }
+
+    private static File getHUDConfigFile(String presetName) {
+        String name = presetName.endsWith(".json") ? presetName.substring(0, presetName.length() - 5) + ".cfg" : presetName + ".cfg";
+        return new File(new File(Minecraft.getMinecraft().mcDataDir, "config/cyvforge/presets"), name);
+    }
+
+    private static void saveHUDConfig(String presetName) {
+        if (presetName == null || presetName.equals("none") || presetName.isEmpty()) return;
+        try {
+            ConfigLoader.save(CyvForge.config, false);
+            File configFile = ConfigLoader.configFile;
+            File presetFile = getHUDConfigFile(presetName);
+            if (configFile == null || !configFile.isFile()) return;
+            File parent = presetFile.getParentFile();
+            if (parent != null && !parent.exists()) parent.mkdirs();
+            Files.copy(configFile.toPath(), presetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private static boolean loadHUDConfig(String presetName) {
+        File presetFile = getHUDConfigFile(presetName);
+        File configFile = ConfigLoader.configFile;
+        if (!presetFile.isFile() || configFile == null) return false;
+        try {
+            Files.copy(presetFile.toPath(), configFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            for (CyvClientConfig.ConfigValue<?> value : CyvForge.config.configFields.values()) value.reset();
+            ConfigLoader.read(CyvForge.config);
+            setSelectedName(PresetType.HUD, presetName);
+            ConfigLoader.save(CyvForge.config, false);
+            return true;
+        } catch (Exception e) { e.printStackTrace(); return false; }
+    }
+
+    private static String getSelectedName(PresetType type) {
+        if (type == PresetType.HUD) return CyvClientConfig.getString("selectedPreset", "none");
+        File selFile = getKbSelFile();
+        if (selFile.isFile()) {
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(new FileInputStream(selFile), "UTF-8"))) {
+                String s = r.readLine();
+                if (s != null && !s.trim().isEmpty()) return s.trim();
+            } catch (IOException e) { e.printStackTrace(); }
+        }
+        return CyvClientConfig.getString("selectedKbPreset", "none");
+    }
+
+    private static void setSelectedName(PresetType type, String name) {
+        name = (name == null || name.isEmpty()) ? "none" : name;
+        if (type == PresetType.HUD) { CyvClientConfig.set("selectedPreset", name); return; }
+        try (Writer w = new OutputStreamWriter(new FileOutputStream(getKbSelFile()), "UTF-8")) {
+            w.write(name);
+        } catch (IOException e) { e.printStackTrace(); }
+        CyvClientConfig.set("selectedKbPreset", name);
+    }
+
+    private static JsonObject readHUDData(File file, String name) {
+        if (file.isFile()) {
+            try (Reader r = new InputStreamReader(new FileInputStream(file), "UTF-8")) {
+                JsonElement element = new JsonParser().parse(r);
+                if (element != null && element.isJsonObject()) return element.getAsJsonObject();
+            } catch (Exception e) { e.printStackTrace(); }
+        }
+        return new Gson().toJsonTree(new HUDPreset(name)).getAsJsonObject();
+    }
+
+    private static JsonObject getHUDPositions(JsonObject data) {
+        if (!data.has("positions") || !data.get("positions").isJsonObject()) data.add("positions", new JsonObject());
+        return data.getAsJsonObject("positions");
     }
 
     @Override
     public void initGui() {
         Keyboard.enableRepeatEvents(true);
-        int startX = this.width / 2 - sizeX / 2;
-        int startY = this.height / 2 - sizeY / 2;
+        int startX = this.width / 2 - sizeX / 2, startY = this.height / 2 - sizeY / 2;
         this.backBtn = new SubButton("Back", startX, startY - 25, 40, 14);
         this.addNewButton = new SubButton("Create New Preset", this.width / 2 - 75, startY + sizeY - 25, 150, 20);
+        this.backBtn.setEnabled(true);
         this.addNewButton.setEnabled(true);
+        if (currentTab == PresetType.HUD) saveCurrentTabState();
         refreshPresets();
-        saveCurrentLayoutToSelected();
     }
 
     public void refreshPresets() {
         presetLines.clear();
-        File[] files = presetDir.listFiles((dir, name) -> name.endsWith(".json"));
-        if (files != null) {
-            for (File f : files) {
-                presetLines.add(new PresetLine(f));
-            }
-        }
+        File activeDir = (currentTab == PresetType.HUD) ? hudPresetDir : kbPresetDir;
+        File[] files = activeDir.listFiles((dir, name) -> name.endsWith(".json"));
+        if (files != null) for (File f : files) presetLines.add(new PresetLine(f));
 
-        String selected = CyvClientConfig.getString("selectedPreset", "none");
+        String selected = getSelectedName(currentTab);
         boolean found = false;
-        PresetLine toApply = null;
-
-        for (PresetLine line : presetLines) {
-            if (line.file.getName().equals(selected)) {
-                found = true;
-                break;
-            }
-        }
+        for (PresetLine line : presetLines) if (line.file.getName().equals(selected)) found = true;
 
         if (!found && !presetLines.isEmpty()) {
-            toApply = presetLines.get(0);
-            CyvClientConfig.set("selectedPreset", toApply.file.getName());
+            PresetLine toApply = presetLines.get(0);
+            setSelectedName(currentTab, toApply.file.getName());
             toApply.applyPreset();
+            if (currentTab == PresetType.HUD) saveHUDConfig(toApply.file.getName());
             ConfigLoader.save(CyvForge.config, false);
-        } else if (presetLines.isEmpty()) {
-            CyvClientConfig.set("selectedPreset", "none");
-        }
+        } else if (presetLines.isEmpty()) setSelectedName(currentTab, "none");
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         super.drawDefaultBackground();
-        int startX = this.width / 2 - sizeX / 2;
-        int startY = this.height / 2 - sizeY / 2;
+        int startX = this.width / 2 - sizeX / 2, startY = this.height / 2 - sizeY / 2, listHeight = sizeY - 70;
+        maxScroll = Math.max(0, presetLines.size() * 22 - listHeight);
 
-        maxScroll = Math.max(0, (presetLines.size() * 22) - (sizeY - 70));
-
-        int bx = startX;
-        int by = startY - 25;
-        int bw = 40;
-        int bh = 14;
-        boolean backHover = mouseX >= bx && mouseX <= bx + bw && mouseY >= by && mouseY <= by + bh;
-
-        int backColor = backHover ? 0xBF333333 : 0xBF000000;
-        GuiUtils.drawRoundedRect(bx, by, bx + bw, by + bh, 5, backColor);
-        GuiUtils.drawCenteredString("Back", bx + bw / 2, by + 3, 0xFFFFFFFF, false);
+        // Back Button
+        boolean backHover = mouseX >= startX && mouseX <= startX + 40 && mouseY >= startY - 25 && mouseY <= startY - 11;
+        GuiUtils.drawRoundedRect(startX, startY - 25, startX + 40, startY - 11, 5, backHover ? 0xBF333333 : 0xBF000000);
+        GuiUtils.drawCenteredString("Back", startX + 20, startY - 22, 0xFFFFFFFF, false);
 
         GuiUtils.drawRoundedRect(startX - 5, startY - 5, startX + sizeX + 5, startY + sizeY + 5, 5, CyvForge.theme.background1);
-        GuiUtils.drawCenteredString("HUD Presets", this.width / 2, startY + 5, 0xFFFFFFFF, true);
+        GuiUtils.drawCenteredString(currentTab == PresetType.HUD ? "Config Presets" : "Keybind Presets", this.width / 2, startY + 5, 0xFFFFFFFF, true);
+
+        // Tabs
+        int tabY = startY + 20, tabW = 95;
+        boolean hoverHud = mouseX >= startX + 10 && mouseX <= startX + 10 + tabW && mouseY >= tabY && mouseY <= tabY + 16;
+        GuiUtils.drawRoundedRect(startX + 10, tabY, startX + 10 + tabW, tabY + 16, 2, currentTab == PresetType.HUD ? 0x80FFFFFF : (hoverHud ? 0x60FFFFFF : 0x40000000));
+        GuiUtils.drawCenteredString("Config", startX + 10 + tabW / 2, tabY + 4, currentTab == PresetType.HUD ? 0xFFFFFF00 : 0xFFFFFFFF, false);
+
+        boolean hoverKb = mouseX >= startX + 115 && mouseX <= startX + 115 + tabW && mouseY >= tabY && mouseY <= tabY + 16;
+        GuiUtils.drawRoundedRect(startX + 115, tabY, startX + 115 + tabW, tabY + 16, 2, currentTab == PresetType.KEYBINDS ? 0x80FFFFFF : (hoverKb ? 0x60FFFFFF : 0x40000000));
+        GuiUtils.drawCenteredString("Keybinds", startX + 115 + tabW / 2, tabY + 4, currentTab == PresetType.KEYBINDS ? 0xFFFFFF00 : 0xFFFFFFFF, false);
+
         this.addNewButton.draw(mouseX, mouseY);
 
         int factor = sr.getScaleFactor();
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(startX * factor, (height - (startY + sizeY - 30)) * factor, sizeX * factor, (sizeY - 60) * factor);
+        GL11.glScissor(startX * factor, (height - (startY + sizeY - 30)) * factor, sizeX * factor, listHeight * factor);
 
-        String currentSelected = CyvClientConfig.getString("selectedPreset", "");
+        String currentSelected = getSelectedName(currentTab);
         for (int i = 0; i < presetLines.size(); i++) {
-            int yPos = (int) (startY + 40 + (i * 22) - scroll);
+            int yPos = (int) (startY + 45 + (i * 22) - scroll);
             PresetLine line = presetLines.get(i);
-
-            if (line.file.getName().equals(currentSelected)) {
-                GuiUtils.drawRectOutline(startX + 1, yPos - 4, startX + sizeX - 2, yPos + 18, 0xFFFFFFFF);
-            }
             line.draw(yPos, mouseX, mouseY);
+            if (line.file.getName().equals(currentSelected)) GuiUtils.drawRectOutline(startX + 1, yPos - 4, startX + sizeX - 2, yPos + 18, 0xFFFFFFFF);
         }
-
         GL11.glDisable(GL11.GL_SCISSOR_TEST);
 
         if (maxScroll > 0) {
-            int barHeight = sizeY - 70;
-            int scrollHeight = Math.max(10, (int) ((float) barHeight * barHeight / (maxScroll + barHeight)));
-            int scrollPos = (int) (scroll / maxScroll * (barHeight - scrollHeight));
-
-            Gui.drawRect(startX - 3, startY + 35, startX - 1, startY + 35 + barHeight, 0x30FFFFFF);
-            Gui.drawRect(startX - 3, startY + 35 + scrollPos, startX - 1, startY + 35 + scrollPos + scrollHeight, 0xFFFFFFFF);
+            int scrollHeight = Math.max(10, (int) ((float) listHeight * listHeight / (maxScroll + listHeight)));
+            int scrollPos = (int) (scroll / maxScroll * (listHeight - scrollHeight));
+            Gui.drawRect(startX - 3, startY + 40, startX - 1, startY + 40 + listHeight, 0x30FFFFFF);
+            Gui.drawRect(startX - 3, startY + 40 + scrollPos, startX - 1, startY + 40 + scrollPos + scrollHeight, 0xFFFFFFFF);
         }
     }
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseEvent) throws IOException {
-        int startX = this.width / 2 - sizeX / 2;
-        int startY = this.height / 2 - sizeY / 2;
+        int startX = this.width / 2 - sizeX / 2, startY = this.height / 2 - sizeY / 2;
+        if (mouseX >= startX && mouseX <= startX + 40 && mouseY >= startY - 25 && mouseY <= startY - 11) { mc.displayGuiScreen(new GuiMPK()); return; }
 
-        if (mouseX >= startX && mouseX <= startX + 40 && mouseY >= startY - 25 && mouseY <= startY - 11) {
-            mc.displayGuiScreen(new GuiMPK());
-            return;
+        int tabY = startY + 20;
+        if (mouseY >= tabY && mouseY <= tabY + 16) {
+            if (mouseX >= startX + 10 && mouseX <= startX + 105 && currentTab != PresetType.HUD) {
+                saveCurrentTabState(); currentTab = PresetType.HUD; scroll = 0; refreshPresets(); return;
+            }
+            if (mouseX >= startX + 115 && mouseX <= startX + 210 && currentTab != PresetType.KEYBINDS) {
+                saveCurrentTabState(); currentTab = PresetType.KEYBINDS; scroll = 0; refreshPresets(); return;
+            }
         }
 
-        if (this.addNewButton.clicked(mouseX, mouseY, mouseEvent)) {
-            saveCurrentAsNew();
-            refreshPresets();
-            return;
-        }
+        if (this.addNewButton.clicked(mouseX, mouseY, mouseEvent)) { saveCurrentAsNew(); refreshPresets(); return; }
 
-        ArrayList<PresetLine> tempLines = new ArrayList<>(presetLines);
-        for (int i = 0; i < tempLines.size(); i++) {
-            int yPos = (int) (startY + 40 + (i * 22) - scroll);
-
-            if (mouseY >= startY + 30 && mouseY <= startY + sizeY - 30) {
-                if (tempLines.get(i).mouseClicked(yPos, mouseX, mouseY, mouseEvent)) break;
+        ArrayList<PresetLine> temp = new ArrayList<>(presetLines);
+        for (int i = 0; i < temp.size(); i++) {
+            int yPos = (int) (startY + 45 + (i * 22) - scroll);
+            if (mouseY >= startY + 40 && mouseY <= startY + sizeY - 30) {
+                if (temp.get(i).mouseClicked(yPos, mouseX, mouseY, mouseEvent)) break;
             }
         }
     }
 
     @Override
     public void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (keyCode == Keyboard.KEY_ESCAPE) {
-            saveCurrentLayoutToSelected();
-            mc.displayGuiScreen(new GuiMPK());
-            return;
-        }
-
-        ArrayList<PresetLine> linesCopy = new ArrayList<>(presetLines);
-        for (PresetLine line : linesCopy) {
+        if (keyCode == Keyboard.KEY_ESCAPE) { saveCurrentTabState(); mc.displayGuiScreen(new GuiMPK()); return; }
+        for (PresetLine line : new ArrayList<>(presetLines)) {
             if (line.nameField.isFocused()) {
                 line.nameField.textboxKeyTyped(typedChar, keyCode);
-                if (keyCode == Keyboard.KEY_RETURN) {
-                    line.saveName();
-                    refreshPresets();
-                    return;
-                }
+                if (keyCode == Keyboard.KEY_RETURN) { line.saveName(); refreshPresets(); return; }
             }
         }
     }
 
     private void saveCurrentAsNew() {
-        String name = "Preset " + (presetLines.size() + 1);
-        HUDPreset preset = new HUDPreset(name);
-        for (DraggableHUDElement e : HUDManager.registeredRenderers) {
-            ScreenPosition p = (e.position != null) ? e.position : e.load();
-            if (p == null) p = e.getDefaultPosition();
-            preset.positions.put(e.getName(), p.getAbsoluteX() + "," + p.getAbsoluteY() + "," + e.isVisible + "," + e.isEnabled);
+        File dir = (currentTab == PresetType.HUD) ? hudPresetDir : kbPresetDir;
+        int number = presetLines.size() + 1;
+        String name = "Preset " + number;
+        File file = new File(dir, name + ".json");
+        while (file.exists()) { number++; name = "Preset " + number; file = new File(dir, name + ".json"); }
+
+        if (currentTab == PresetType.HUD) {
+            HUDPreset p = new HUDPreset(name);
+            for (DraggableHUDElement e : HUDManager.registeredRenderers) {
+                ScreenPosition pos = (e.position != null) ? e.position : (e.load() != null ? e.load() : e.getDefaultPosition());
+                p.positions.put(e.getName(), pos.getAbsoluteX() + "," + pos.getAbsoluteY() + "," + e.isVisible + "," + e.isEnabled);
+            }
+            saveObj(file, p);
+        } else {
+            KeybindPreset p = new KeybindPreset(name);
+            for (KeyBinding kb : mc.gameSettings.keyBindings) p.keybinds.put(kb.getKeyDescription(), kb.getKeyCode());
+            saveObj(file, p);
         }
-        savePresetToFile(new File(presetDir, name + ".json"), preset);
-        CyvClientConfig.set("selectedPreset", name + ".json");
+        setSelectedName(currentTab, name + ".json");
+        if (currentTab == PresetType.HUD) saveHUDConfig(name + ".json");
         ConfigLoader.save(CyvForge.config, false);
     }
 
-    public static void savePresetToFile(File file, HUDPreset preset) {
-        try (Writer writer = new OutputStreamWriter(new FileOutputStream(file), "UTF-8")) {
-            new GsonBuilder().setPrettyPrinting().create().toJson(preset, writer);
+    public static void saveObj(File f, Object o) {
+        File parent = f.getParentFile();
+        if (parent != null && !parent.exists()) parent.mkdirs();
+        try (Writer w = new OutputStreamWriter(new FileOutputStream(f), "UTF-8")) {
+            new GsonBuilder().setPrettyPrinting().create().toJson(o, w);
         } catch (IOException e) { e.printStackTrace(); }
     }
 
+    private void saveCurrentTabState() {
+        if (currentTab == PresetType.HUD) saveCurrentLayoutToSelected();
+        else saveCurrentKeybindsToSelected();
+    }
+
     public static void saveCurrentLayoutToSelected() {
-        String selectedFileName = CyvClientConfig.getString("selectedPreset", "none");
-        if (selectedFileName.equals("none") || selectedFileName.isEmpty()) return;
+        String sel = getSelectedName(PresetType.HUD);
+        if (sel.equals("none") || sel.isEmpty()) return;
+        File f = new File(new File(Minecraft.getMinecraft().mcDataDir, "config/cyvforge/presets"), sel);
+        if (!f.exists()) return;
 
-        File presetDir = new File(Minecraft.getMinecraft().mcDataDir, "config/cyvforge/presets");
-        File file = new File(presetDir, selectedFileName);
-        if (!file.exists()) return;
-
-        HUDPreset preset;
-        try (Reader reader = new InputStreamReader(new FileInputStream(file), "UTF-8")) {
-            preset = new Gson().fromJson(reader, HUDPreset.class);
-        } catch (Exception e) {
-            preset = new HUDPreset(selectedFileName.replace(".json", ""));
-        }
-
+        JsonObject data = readHUDData(f, sel.replace(".json", ""));
+        JsonObject positions = getHUDPositions(data);
         for (DraggableHUDElement e : HUDManager.registeredRenderers) {
-            ScreenPosition p = (e.position != null) ? e.position : e.load();
-            if (p == null) p = e.getDefaultPosition();
-            preset.positions.put(e.getName(), p.getAbsoluteX() + "," + p.getAbsoluteY() + "," + e.isVisible + "," + e.isEnabled);
+            ScreenPosition pos = (e.position != null) ? e.position : (e.load() != null ? e.load() : e.getDefaultPosition());
+            positions.addProperty(e.getName(), pos.getAbsoluteX() + "," + pos.getAbsoluteY() + "," + e.isVisible + "," + e.isEnabled);
         }
+        data.add("positions", positions);
+        data.remove("configs");
+        saveObj(f, data);
+        saveHUDConfig(sel);
+    }
 
-        savePresetToFile(file, preset);
+    public static void saveCurrentKeybindsToSelected() {
+        String sel = getSelectedName(PresetType.KEYBINDS);
+        if (sel.equals("none") || sel.isEmpty()) return;
+        File f = new File(new File(Minecraft.getMinecraft().mcDataDir, "config/cyvforge/keybinds"), sel);
+        if (!f.isFile()) return;
+
+        KeybindPreset p = new KeybindPreset(sel.replace(".json", ""));
+        for (KeyBinding kb : Minecraft.getMinecraft().gameSettings.keyBindings) p.keybinds.put(kb.getKeyDescription(), kb.getKeyCode());
+        saveObj(f, p);
     }
 
     @Override
     public void onGuiClosed() {
         Keyboard.enableRepeatEvents(false);
-        saveCurrentLayoutToSelected();
+        saveCurrentTabState();
         super.onGuiClosed();
     }
 
     class PresetLine {
-        File file; HUDPreset data; GuiTextField nameField; SubButton editBtn, deleteBtn;
+        File file; String presetName; GuiTextField nameField; SubButton editBtn, deleteBtn;
 
         public PresetLine(File f) {
             this.file = f;
-            try (Reader reader = new InputStreamReader(new FileInputStream(f), "UTF-8")) {
-                this.data = new Gson().fromJson(reader, HUDPreset.class);
-            } catch (Exception e) { this.data = new HUDPreset(f.getName().replace(".json", "")); }
+            this.presetName = f.getName().replace(".json", "");
             nameField = new GuiTextField(0, fontRendererObj, 0, 0, 110, 14);
-            nameField.setText(data.presetName);
+            nameField.setText(presetName);
             nameField.setEnableBackgroundDrawing(true);
             editBtn = new SubButton("Edit", 0, 0, 40, 14);
             deleteBtn = new SubButton("X", 0, 0, 15, 14);
@@ -249,19 +336,26 @@ public class GuiPresets extends CyvGui {
         }
 
         public void saveName() {
-            String newName = nameField.getText().trim();
-            if (newName.isEmpty() || newName.equals(data.presetName)) return;
-            File newFile = new File(presetDir, newName + ".json");
-            if (file.renameTo(newFile)) {
-                if (CyvClientConfig.getString("selectedPreset", "").equals(file.getName())) {
-                    CyvClientConfig.set("selectedPreset", newFile.getName());
+            String newN = nameField.getText().trim();
+            if (newN.isEmpty() || newN.equals(presetName)) { nameField.setText(presetName); nameField.setFocused(false); return; }
+            File newF = new File(file.getParentFile(), newN + ".json");
+            if (newF.exists()) { nameField.setText(presetName); nameField.setFocused(false); return; }
+
+            String oldName = file.getName();
+            boolean wasSelected = getSelectedName(currentTab).equals(oldName);
+
+            if (file.renameTo(newF)) {
+                if (currentTab == PresetType.HUD) {
+                    File oldConfig = getHUDConfigFile(oldName), newConfig = getHUDConfigFile(newF.getName());
+                    if (oldConfig.isFile()) {
+                        try { Files.move(oldConfig.toPath(), newConfig.toPath(), StandardCopyOption.REPLACE_EXISTING); } catch (IOException e) { e.printStackTrace(); }
+                    }
                 }
-                this.file = newFile;
-                data.presetName = newName;
-                savePresetToFile(file, data);
-            }
-            nameField.setFocused(false);
-            ConfigLoader.save(CyvForge.config, false);
+                if (wasSelected) setSelectedName(currentTab, newF.getName());
+                this.file = newF; this.presetName = newN; nameField.setText(newN);
+                if (wasSelected && currentTab == PresetType.HUD) saveCurrentLayoutToSelected();
+            } else { nameField.setText(presetName); }
+            nameField.setFocused(false); refreshPresets(); ConfigLoader.save(CyvForge.config, false);
         }
 
         public boolean mouseClicked(int y, int mx, int my, int btn) {
@@ -269,57 +363,77 @@ public class GuiPresets extends CyvGui {
             nameField.mouseClicked(mx, my, btn);
             if (mx >= xStart && mx <= xStart + sizeX && my >= y && my <= y + 16) {
                 if (mx >= xStart + 165 && mx <= xStart + 185) {
-                    boolean wasSelected = CyvClientConfig.getString("selectedPreset", "").equals(file.getName());
+                    boolean wasSelected = getSelectedName(currentTab).equals(file.getName());
                     if (file.delete()) {
-                        if (wasSelected) {
-                            CyvClientConfig.set("selectedPreset", "none");
-                        }
+                        if (currentTab == PresetType.HUD) getHUDConfigFile(file.getName()).delete();
+                        if (wasSelected) setSelectedName(currentTab, "none");
                         refreshPresets();
                     }
                     return true;
                 }
-                saveCurrentLayoutToSelected();
-                CyvClientConfig.set("selectedPreset", file.getName());
-                applyPreset();
-                ConfigLoader.save(CyvForge.config, false);
+                saveCurrentTabState(); setSelectedName(currentTab, file.getName()); applyPreset();
                 if (mx >= xStart + 120 && mx <= xStart + 160) {
-                    mc.displayGuiScreen(new GuiHUDPositions(true, true));
+                    if (currentTab == PresetType.HUD) {
+                        mc.displayGuiScreen(new GuiHUDPositions(true, true));
+                    } else {
+                        mc.displayGuiScreen(new net.minecraft.client.gui.GuiControls(GuiPresets.this, mc.gameSettings) {
+                            @Override
+                            public void onGuiClosed() {
+                                KeyBinding.resetKeyBindingArrayAndHash();
+                                mc.gameSettings.saveOptions();
+                                saveCurrentKeybindsToSelected();
+                                super.onGuiClosed();
+                            }
+                        });
+                    }
                 }
-                return true;
+                ConfigLoader.save(CyvForge.config, false); return true;
             }
             return false;
         }
 
         public void applyPreset() {
-            for (DraggableHUDElement e : HUDManager.registeredRenderers) {
-                String dataStr = data.positions.get(e.getName());
-                if (dataStr != null) {
-                    String[] pts = dataStr.split(",");
-                    e.save(new ScreenPosition(Integer.parseInt(pts[0]), Integer.parseInt(pts[1])));
-                    e.load();
-                    if (pts.length >= 3) e.isVisible = Boolean.parseBoolean(pts[2]);
-                    if (pts.length >= 4) e.setEnabled(Boolean.parseBoolean(pts[3]));
+            try (Reader r = new InputStreamReader(new FileInputStream(file), "UTF-8")) {
+                if (currentTab == PresetType.HUD) {
+                    boolean configLoaded = loadHUDConfig(file.getName());
+                    JsonElement element = new JsonParser().parse(r);
+                    if (element == null || !element.isJsonObject()) return;
+
+                    JsonObject data = element.getAsJsonObject();
+                    JsonObject positions = getHUDPositions(data);
+                    for (DraggableHUDElement e : HUDManager.registeredRenderers) {
+                        JsonElement posElement = positions.get(e.getName());
+                        if (posElement != null && posElement.isJsonPrimitive()) {
+                            String[] p = posElement.getAsString().split(",");
+                            if (p.length >= 2) { e.save(new ScreenPosition(Integer.parseInt(p[0]), Integer.parseInt(p[1]))); e.load(); }
+                            if (p.length >= 3) e.isVisible = Boolean.parseBoolean(p[2]);
+                            if (p.length >= 4) e.setEnabled(Boolean.parseBoolean(p[3]));
+                        }
+                    }
+                } else {
+                    KeybindPreset d = new Gson().fromJson(r, KeybindPreset.class);
+                    if (d != null && d.keybinds != null) {
+                        for (KeyBinding kb : mc.gameSettings.keyBindings) {
+                            Integer code = d.keybinds.get(kb.getKeyDescription());
+                            if (code != null) kb.setKeyCode(code);
+                        }
+                    }
+                    KeyBinding.resetKeyBindingArrayAndHash(); mc.gameSettings.saveOptions();
                 }
-            }
+            } catch (Exception e) { e.printStackTrace(); }
         }
     }
 
     @Override
     public void handleMouseInput() throws IOException {
-        int eventDWheel = net.cyvforge.event.events.GuiHandler.scrollBuffer;
-        net.cyvforge.event.events.GuiHandler.scrollBuffer = 0;
-
-        if (eventDWheel != 0 && !org.lwjgl.input.Mouse.isButtonDown(0)) {
-            vScroll -= eventDWheel * 0.05;
-        }
-
+        int wheel = Mouse.getDWheel();
+        if (wheel != 0) vScroll -= wheel * 0.08f;
         super.handleMouseInput();
     }
 
     @Override
     public void updateScreen() {
-        scroll += vScroll;
-        vScroll *= 0.7f;
+        scroll += vScroll; vScroll *= 0.7f;
         if (scroll < 0) scroll = 0;
         if (scroll > maxScroll) scroll = maxScroll;
     }

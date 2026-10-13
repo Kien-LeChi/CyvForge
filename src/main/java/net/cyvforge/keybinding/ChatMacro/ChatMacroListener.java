@@ -47,26 +47,36 @@ public class ChatMacroListener {
                 if (allDown) {
                     if (hk.isChain) {
                         if (hk.isLink) {
-                            executeCmd(hk.commandOn, hk.isClient);
-                            executeCmd(hk.commandOff, hk.isClient);
+                            executeCmd(hk.commandOn);
+                            executeCmd(hk.commandOff);
                         } else {
                             hk.chainState = !hk.chainState;
-                            executeCmd(hk.chainState ? hk.commandOn : hk.commandOff, hk.isClient);
+                            executeCmd(hk.chainState ? hk.commandOn : hk.commandOff);
                         }
                     } else {
-                        executeCmd(hk.commandOn, hk.isClient);
+                        executeCmd(hk.commandOn);
                     }
                 }
             }
         }
     }
 
-    private void executeCmd(String cmd, boolean isClient) {
-        if (cmd == null || cmd.isEmpty()) return;
-        if (isClient) {
-            ClientCommandHandler.instance.executeCommand(Minecraft.getMinecraft().thePlayer, cmd);
+    private void executeCmd(String cmd) {
+        if (cmd == null || cmd.trim().isEmpty()) return;
+
+        Minecraft mc = Minecraft.getMinecraft();
+        String trimmed = cmd.trim();
+
+        String cmdName = trimmed.startsWith("/") ? trimmed.substring(1) : trimmed;
+        cmdName = cmdName.split(" ")[0];
+
+        boolean isClientCmd = ClientCommandHandler.instance.getCommands().containsKey(cmdName);
+
+        if (isClientCmd) {
+            String clientCmd = trimmed.startsWith("/") ? trimmed : "/" + trimmed;
+            ClientCommandHandler.instance.executeCommand(mc.thePlayer, clientCmd);
         } else {
-            Minecraft.getMinecraft().thePlayer.sendChatMessage(cmd);
+            mc.thePlayer.sendChatMessage(trimmed);
         }
     }
 }

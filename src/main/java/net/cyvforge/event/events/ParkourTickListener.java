@@ -177,7 +177,7 @@ public class ParkourTickListener {
             }
 
             if (mcPlayer.onGround) {
-                if (hasEffectiveMovement && !Space) {
+                if (hasEffectiveMovement) {
                     if (lastTick != null && lastTick.onGround) {
                         runCounter++;
                         lastRunTime = runCounter;
