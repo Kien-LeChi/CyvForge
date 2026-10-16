@@ -298,20 +298,18 @@ public class GuiMPK extends CyvGui {
 
     @Override
     public void handleMouseInput() throws IOException {
-        int eventDWheel = GuiHandler.scrollBuffer;
-        GuiHandler.scrollBuffer = 0;
+        super.handleMouseInput();
+        int eventDWheel = org.lwjgl.input.Mouse.getEventDWheel();
 
         if (eventDWheel != 0) {
-            if (selectedSettingsElement != null && Mouse.getEventX() * sr.getScaledWidth() / mc.displayWidth < sr.getScaledWidth() / 2) {
-                settingsVScroll -= eventDWheel * 0.05;
+            if (selectedSettingsElement != null && org.lwjgl.input.Mouse.getEventX() * sr.getScaledWidth() / mc.displayWidth < sr.getScaledWidth() / 2) {
+                settingsVScroll -= eventDWheel * 0.05f;
             } else {
                 if (!scrollClicked || !org.lwjgl.input.Mouse.isButtonDown(0)) {
-                    vScroll -= eventDWheel * 0.05;
+                    vScroll -= eventDWheel * 0.05f;
                 }
             }
         }
-
-        super.handleMouseInput();
     }
 
     @Override

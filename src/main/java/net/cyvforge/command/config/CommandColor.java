@@ -6,12 +6,15 @@ import net.cyvforge.util.defaults.CyvCommand;
 import net.minecraft.command.ICommandSender;
 import java.util.List;
 
-public class CommandColor1 extends CyvCommand {
-    public CommandColor1() {
-        super("color1");
+public class CommandColor extends CyvCommand {
+    private final int number; //1 or 2
+
+    public CommandColor(int number) {
+        super("color" + number);
+        this.number = number;
         this.hasArgs = true;
         this.usage = "[color]";
-        this.helpString = "Sets color1 for display and chat.";
+        this.helpString = "Sets color" + number + " for display and chat.";
     }
 
     @Override
@@ -21,8 +24,10 @@ public class CommandColor1 extends CyvCommand {
             return;
         }
 
-        if (CyvClientColorHelper.setColor1(args[0].toLowerCase())) {
-            CyvForge.sendChatMessage("Successfully changed color 1.");
+        boolean success = number == 1 ? CyvClientColorHelper.setColor1(args[0].toLowerCase()) : CyvClientColorHelper.setColor2(args[0].toLowerCase());
+
+        if (success) {
+            CyvForge.sendChatMessage("Successfully changed color " + number + ".");
         } else {
             CyvForge.sendChatMessage("Invalid color. For a list of colors use /cyv colors");
         }

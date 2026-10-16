@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class LabelBundle {
-    FontRenderer font = Minecraft.getMinecraft().fontRendererObj;
+    public FontRenderer font = Minecraft.getMinecraft().fontRendererObj;
     public List<DraggableHUDElement> labels = new ArrayList<DraggableHUDElement>();
 
     public int getLabelWidth(String s) {
@@ -22,7 +22,7 @@ public class LabelBundle {
         StringBuilder str;
         if (angle) str = new StringBuilder(s + ": 000.");
         else str = new StringBuilder(s + ": 000000.");
-        for (int i = 0; i< CyvClientConfig.getInt("df",5); i++) str.append("0");
+        str.append(zeros());
         if (angle) str.append("\u00B0");
         return font.getStringWidth(str.toString());
     }
@@ -31,4 +31,15 @@ public class LabelBundle {
         return 9;
     }
 
+    public String getDummyNumber() {
+        StringBuilder str = new StringBuilder("0.");
+        str.append(zeros());
+        return str.toString();
+    }
+
+    public static String zeros() {
+        StringBuilder zeros = new StringBuilder();
+        for (int i = 0; i < CyvClientConfig.getInt("df", 5); i++) zeros.append("0");
+        return zeros.toString();
+    }
 }

@@ -27,12 +27,15 @@ public class ChatSuggestionsHandler {
             this.isHint = isHint;
         }
     }
+
     private final List<String> baseCommands = Arrays.asList("cyv", "mm", "mpk");
 
     private static List<Suggestion> currentSuggestions = new ArrayList<>();
     private static int selectedIndex = -1;
     private static int scrollOffset = 0;
     private static String lastProcessedText = "";
+
+    private static java.lang.reflect.Field inputFieldField;
 
     @SubscribeEvent
     public void onRenderChat(RenderGameOverlayEvent.Post event) {
@@ -45,7 +48,11 @@ public class ChatSuggestionsHandler {
         }
 
         try {
-            GuiTextField inputField = ReflectionHelper.getPrivateValue(GuiChat.class, (GuiChat) mc.currentScreen, "inputField", "field_146415_a");
+            if (inputFieldField == null) {
+                inputFieldField = ReflectionHelper.findField(GuiChat.class, "inputField", "field_146415_a");
+                inputFieldField.setAccessible(true);
+            }
+            GuiTextField inputField = (GuiTextField) inputFieldField.get(mc.currentScreen);
             String text = inputField.getText();
 
             if (!text.equals(lastProcessedText)) {
@@ -71,7 +78,6 @@ public class ChatSuggestionsHandler {
         if (!Keyboard.getEventKeyState()) return;
 
         if (keyCode == Keyboard.KEY_TAB) {
-
             boolean hasClickable = false;
             for (Suggestion s : currentSuggestions) if (!s.isHint) hasClickable = true;
             if (!hasClickable) return;
@@ -133,6 +139,7 @@ public class ChatSuggestionsHandler {
             }
         }
     }
+
     private List<Suggestion> getArgSuggestions(CyvCommand cmd, String[] parts) {
         List<Suggestion> args = new ArrayList<>();
         String currentTyping = parts[parts.length - 1].toLowerCase();
@@ -203,7 +210,13 @@ public class ChatSuggestionsHandler {
     private void updateChatText(String completion) {
         try {
             GuiChat gui = (GuiChat) Minecraft.getMinecraft().currentScreen;
-            GuiTextField inputField = ReflectionHelper.getPrivateValue(GuiChat.class, gui, "inputField", "field_146415_a");
+
+            if (inputFieldField == null) {
+                inputFieldField = ReflectionHelper.findField(GuiChat.class, "inputField", "field_146415_a");
+                inputFieldField.setAccessible(true);
+            }
+            GuiTextField inputField = (GuiTextField) inputFieldField.get(gui);
+
             String currentText = inputField.getText();
             int lastSpace = currentText.lastIndexOf(" ");
             String newText = (lastSpace != -1 ? currentText.substring(0, lastSpace + 1) : "") + completion;

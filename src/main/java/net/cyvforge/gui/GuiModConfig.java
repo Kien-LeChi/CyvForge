@@ -4,7 +4,6 @@ import net.cyvforge.CyvForge;
 import net.cyvforge.config.ColorTheme;
 import net.cyvforge.config.CyvClientColorHelper;
 import net.cyvforge.config.CyvClientConfig;
-import net.cyvforge.event.events.GuiHandler;
 import net.cyvforge.gui.config.ConfigPanel;
 import net.cyvforge.util.PanelUtils;
 import net.cyvforge.util.defaults.CyvGui;
@@ -221,16 +220,15 @@ public class GuiModConfig extends CyvGui {
 
     @Override
     public void handleMouseInput() {
-        int eventDWheel = GuiHandler.scrollBuffer;
-        GuiHandler.scrollBuffer = 0;
-
-        if (eventDWheel != 0 && (!scrollClicked || !org.lwjgl.input.Mouse.isButtonDown(0))) {
-            vScroll -= eventDWheel * 0.05;
-        }
-
         try {
             super.handleMouseInput();
         } catch (IOException e) {}
+
+        int eventDWheel = org.lwjgl.input.Mouse.getEventDWheel();
+
+        if (eventDWheel != 0 && (!scrollClicked || !org.lwjgl.input.Mouse.isButtonDown(0))) {
+            vScroll -= eventDWheel * 0.05f;
+        }
     }
 
     @Override

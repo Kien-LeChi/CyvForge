@@ -117,36 +117,19 @@ public class LandingBlockOffset {
         double rightWallOffset = (b.xMinWall == null) ? 0 : (b.bb[i].minX - b.xMinWall) - fullPlayerSize;
         double leftWallOffset = (b.xMaxWall == null) ? 0 : (b.xMaxWall - b.bb[i].maxX) - fullPlayerSize;
 
-        if (leftWallOffset == 0) {
-            AxisAlignedBB checkBB = new AxisAlignedBB(b.bb[i].maxX, b.bb[i].maxY, b.bb[i].minZ, b.bb[i].maxX + 0.1, b.bb[i].maxY + 0.5, b.bb[i].maxZ);
-            for (AxisAlignedBB collisionBB : mc.theWorld.getCollidingBoundingBoxes(mc.thePlayer, checkBB)) {
-                if (collisionBB.minX >= b.bb[i].maxX && collisionBB.minY < b.bb[i].maxY) {
-                    leftWallOffset = -fullPlayerSize;
-                    break;
-                }
-            }
-        }
-
-        if (rightWallOffset == 0) {
-            AxisAlignedBB checkBB = new AxisAlignedBB(b.bb[i].minX - 0.1, b.bb[i].maxY, b.bb[i].minZ, b.bb[i].minX, b.bb[i].maxY + 0.5, b.bb[i].maxZ);
-            for (AxisAlignedBB collisionBB : mc.theWorld.getCollidingBoundingBoxes(mc.thePlayer, checkBB)) {
-                if (collisionBB.maxX <= b.bb[i].minX && collisionBB.minY < b.bb[i].maxY) {
-                    rightWallOffset = -fullPlayerSize;
-                    break;
-                }
-            }
-        }
-
         if (rightWallOffset > 0) rightWallOffset = 0;
         if (leftWallOffset > 0) leftWallOffset = 0;
 
         double left = (b.bb[i].maxX + leftWallOffset) - (x) + halfPlayerSize;
         double right = (x) - (b.bb[i].minX - rightWallOffset) + halfPlayerSize;
 
-        if (left > Math.abs(right)) return right;
-        if (right > Math.abs(left)) return left;
+        double res = Math.max(left, right);
+        if (left > Math.abs(right)) res = right;
+        else if (right > Math.abs(left)) res = left;
 
-        return Math.max(left, right);
+        if (Math.abs(res) < 0.001) res = 0.0;
+
+        return res;
     }
 
     public static Double checkZ(double z, LandingBlock b, int i) {
@@ -158,36 +141,19 @@ public class LandingBlockOffset {
         double backWallOffset = (b.zMinWall == null) ? 0 : (b.bb[i].minZ - b.zMinWall) - fullPlayerSize;
         double frontWallOffset = (b.zMaxWall == null) ? 0 : (b.zMaxWall - b.bb[i].maxZ) - fullPlayerSize;
 
-        if (frontWallOffset == 0) {
-            AxisAlignedBB checkBB = new AxisAlignedBB(b.bb[i].minX, b.bb[i].maxY, b.bb[i].maxZ, b.bb[i].maxX, b.bb[i].maxY + 0.5, b.bb[i].maxZ + 0.1);
-            for (AxisAlignedBB collisionBB : mc.theWorld.getCollidingBoundingBoxes(mc.thePlayer, checkBB)) {
-                if (collisionBB.minZ >= b.bb[i].maxZ && collisionBB.minY < b.bb[i].maxY) {
-                    frontWallOffset = -fullPlayerSize;
-                    break;
-                }
-            }
-        }
-
-        if (backWallOffset == 0) {
-            AxisAlignedBB checkBB = new AxisAlignedBB(b.bb[i].minX, b.bb[i].maxY, b.bb[i].minZ - 0.1, b.bb[i].maxX, b.bb[i].maxY + 0.5, b.bb[i].minZ);
-            for (AxisAlignedBB collisionBB : mc.theWorld.getCollidingBoundingBoxes(mc.thePlayer, checkBB)) {
-                if (collisionBB.maxZ <= b.bb[i].minZ && collisionBB.minY < b.bb[i].maxY) {
-                    backWallOffset = -fullPlayerSize;
-                    break;
-                }
-            }
-        }
-
         if (backWallOffset > 0) backWallOffset = 0;
         if (frontWallOffset > 0) frontWallOffset = 0;
 
         double front = (b.bb[i].maxZ + frontWallOffset) - (z) + halfPlayerSize;
         double back = (z) - (b.bb[i].minZ - backWallOffset) + halfPlayerSize;
 
-        if (front > Math.abs(back)) return back;
-        if (back > Math.abs(front)) return front;
+        double res = Math.max(front, back);
+        if (front > Math.abs(back)) res = back;
+        else if (back > Math.abs(front)) res = front;
 
-        return Math.max(front, back);
+        if (Math.abs(res) < 0.001) res = 0.0;
+
+        return res;
     }
 
     public static Double calculatePb(Double x, Double z, LandingBlock b) {

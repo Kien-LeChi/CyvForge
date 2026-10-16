@@ -55,7 +55,7 @@ public class DirectionHUD extends DraggableHUDElement {
     public void render(ScreenPosition pos) {
         this.position = this.getDefaultPosition();
         long color2 = 0xFFFFFFFF;
-        float f = mc.thePlayer.rotationYaw;
+        float f = mc.getRenderViewEntity().rotationYaw;
         f = f % 360;
         if (f < 0) f += 360;
 

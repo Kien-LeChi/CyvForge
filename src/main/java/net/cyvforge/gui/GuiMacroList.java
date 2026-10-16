@@ -8,7 +8,6 @@ import net.cyvforge.util.defaults.CyvGui;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiTextField;
 import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.Desktop;
@@ -353,9 +352,12 @@ public class GuiMacroList extends CyvGui {
 
     @Override
     public void handleMouseInput() throws IOException {
-        int dw = Mouse.getEventDWheel();
-        if (dw != 0) vScroll -= dw * 0.15;
         super.handleMouseInput();
+        int eventDWheel = org.lwjgl.input.Mouse.getEventDWheel();
+
+        if (eventDWheel != 0) {
+            vScroll -= eventDWheel * 0.08f;
+        }
     }
 
     @Override

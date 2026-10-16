@@ -19,7 +19,6 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.settings.KeyBinding;
 import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 import java.io.*;
 import java.nio.file.Files;
@@ -426,9 +425,12 @@ public class GuiPresets extends CyvGui {
 
     @Override
     public void handleMouseInput() throws IOException {
-        int wheel = Mouse.getDWheel();
-        if (wheel != 0) vScroll -= wheel * 0.08f;
         super.handleMouseInput();
+        int eventDWheel = org.lwjgl.input.Mouse.getEventDWheel();
+
+        if (eventDWheel != 0) {
+            vScroll -= eventDWheel * 0.08f;
+        }
     }
 
     @Override

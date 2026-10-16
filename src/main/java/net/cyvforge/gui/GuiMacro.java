@@ -303,13 +303,12 @@ public class GuiMacro extends CyvGui {
 
     @Override
     public void handleMouseInput() throws IOException {
-        int eventDWheel = net.cyvforge.event.events.GuiHandler.scrollBuffer;
-        net.cyvforge.event.events.GuiHandler.scrollBuffer = 0;
+        super.handleMouseInput();
+        int eventDWheel = org.lwjgl.input.Mouse.getEventDWheel();
 
         if (eventDWheel != 0) {
-            vScroll -= eventDWheel * 0.05;
+            vScroll -= eventDWheel * 0.05f;
         }
-        super.handleMouseInput();
     }
 
     public static void addToRecent(String name) {

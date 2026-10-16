@@ -3,9 +3,12 @@ package net.cyvforge.config;
 import net.cyvforge.CyvForge;
 import net.cyvforge.hud.HUDManager;
 import net.cyvforge.hud.structure.DraggableHUDElement;
+import org.apache.logging.log4j.LogManager;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Set;
 
 public class CyvClientConfig {
     public HashMap<String,ConfigValue<?>> configFields = new LinkedHashMap<>();
@@ -109,6 +112,8 @@ public class CyvClientConfig {
 
         // active
         configFields.put("selectedPreset", new ConfigValue<String>("none"));
+        configFields.put("selectedKbPreset", new ConfigValue<String>("none"));
+        configFields.put("togglesprint", new ConfigValue<Boolean>(false));
         configFields.put("fullbright", new ConfigValue<Boolean>(false));
 
         for (DraggableHUDElement mod : HUDManager.registeredRenderers) {
@@ -145,10 +150,28 @@ public class CyvClientConfig {
         }
 
         public void set(Object value) {
+            if (value instanceof String) value = parse((String) value);
             try {
                 this.value = (T) (value);
             } catch (Exception e) {
                 e.printStackTrace();
+            }
+        }
+
+        private Object parse(String s) {
+            switch (type) {
+                case INTEGER: return Integer.valueOf(s.trim());
+                case LONG: return Long.valueOf(s.trim());
+                case DOUBLE: return Double.valueOf(s.trim());
+                case BOOLEAN:
+                    String b = s.trim();
+                    if (b.equalsIgnoreCase("true")) return true;
+                    if (b.equalsIgnoreCase("false")) return false;
+                    throw new IllegalArgumentException("not a boolean: " + s);
+                case CHARACTER:
+                    if (s.length() != 1) throw new IllegalArgumentException("not a single character: " + s);
+                    return s.charAt(0);
+                default: return s;
             }
         }
 
@@ -159,6 +182,16 @@ public class CyvClientConfig {
 
     public static enum Type {
         UNKNOWN, INTEGER, LONG, DOUBLE, BOOLEAN, CHARACTER, STRING
+    }
+
+    private static final Set<String> warnedKeys = new HashSet<String>();
+
+    private static void warnOnce(String k, Exception e) {
+        synchronized (warnedKeys) {
+            if (!warnedKeys.add(k)) return;
+        }
+        String reason = (e instanceof NullPointerException) ? "the option is not registered or has no value" : e.toString();
+        LogManager.getLogger().warn("Config option \"" + k + "\" could not be read, using the default value (" + reason + ")");
     }
 
     //A bunch of methods here
@@ -173,32 +206,32 @@ public class CyvClientConfig {
     public static int getInt(String k, int defaultValue) {
         try {return Integer.valueOf(CyvForge.config.configFields.get(k).value.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            warnOnce(k, e);
             return defaultValue;}
     }
 
     public static long getLong(String k, long defaultValue) {
         try {return Long.valueOf(CyvForge.config.configFields.get(k).value.toString());
-        } catch (Exception e) {return defaultValue;}
+        } catch (Exception e) {warnOnce(k, e); return defaultValue;}
     }
 
     public static double getDouble(String k, double defaultValue) {
         try {return Double.valueOf(CyvForge.config.configFields.get(k).value.toString());
-        } catch (Exception e) {return defaultValue;}
+        } catch (Exception e) {warnOnce(k, e); return defaultValue;}
     }
 
     public static boolean getBoolean(String k, boolean defaultValue) {
         try {return Boolean.valueOf(CyvForge.config.configFields.get(k).value.toString());
-        } catch (Exception e) {return defaultValue;}
+        } catch (Exception e) {warnOnce(k, e); return defaultValue;}
     }
 
     public static char getChar(String k, char defaultValue) {
         try {return CyvForge.config.configFields.get(k).value.toString().toCharArray()[0];
-        } catch (Exception e) {return defaultValue;}
+        } catch (Exception e) {warnOnce(k, e); return defaultValue;}
     }
 
     public static String getString(String k, String defaultValue) {
         try {return CyvForge.config.configFields.get(k).value.toString();
-        } catch (Exception e) {return defaultValue;}
+        } catch (Exception e) {warnOnce(k, e); return defaultValue;}
     }
 }

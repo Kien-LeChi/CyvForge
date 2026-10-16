@@ -8,11 +8,11 @@ import net.cyvforge.util.parkour.LandingBlock;
 import net.cyvforge.util.parkour.LandingBlockOffset;
 import net.cyvforge.util.parkour.LandingMode;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.entity.EntityPlayerSP;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.settings.GameSettings;
 import net.minecraft.command.CommandBase;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.potion.PotionEffect;
@@ -24,6 +24,7 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.lwjgl.opengl.GL11;
+import net.minecraft.client.renderer.GlStateManager;
 
 import java.text.DecimalFormat;
 
@@ -102,6 +103,38 @@ public class ParkourTickListener {
     private static boolean hasActed = false;
     private static boolean hasCollided = false;
 
+    public static boolean[] getInferredKeys(Entity viewEntity) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (viewEntity == mc.thePlayer) {
+            GameSettings gs = mc.gameSettings;
+            return new boolean[] {
+                    gs.keyBindForward.isKeyDown(),
+                    gs.keyBindLeft.isKeyDown(),
+                    gs.keyBindBack.isKeyDown(),
+                    gs.keyBindRight.isKeyDown(),
+                    gs.keyBindJump.isKeyDown(),
+                    gs.keyBindSprint.isKeyDown(),
+                    gs.keyBindSneak.isKeyDown()
+            };
+        } else if (viewEntity instanceof EntityLivingBase) {
+            EntityLivingBase elb = (EntityLivingBase) viewEntity;
+            boolean jump = false;
+            try {
+                jump = net.minecraftforge.fml.relauncher.ReflectionHelper.getPrivateValue(EntityLivingBase.class, elb, "isJumping", "field_70703_bu");
+            } catch (Exception e) {}
+
+            return new boolean[] {
+                    elb.moveForward > 0,
+                    elb.moveStrafing > 0, // A
+                    elb.moveForward < 0,
+                    elb.moveStrafing < 0, // D
+                    jump,
+                    elb.isSprinting(),
+                    elb.isSneaking()
+            };
+        }
+        return new boolean[7];
+    }
 
     @SubscribeEvent
     public void onKeyInput(net.minecraftforge.fml.common.gameevent.InputEvent.KeyInputEvent event) {
@@ -140,20 +173,29 @@ public class ParkourTickListener {
         if (event.phase != TickEvent.Phase.END) return;
 
         Minecraft mc = Minecraft.getMinecraft();
-        EntityPlayerSP mcPlayer = mc.thePlayer;
-        GameSettings gameSettings = mc.gameSettings;
+        Entity viewEntity = mc.getRenderViewEntity();
 
-        if (mcPlayer == null || mc.theWorld == null || mc.isGamePaused()) return;
+        if (viewEntity == null || mc.theWorld == null || mc.isGamePaused()) return;
 
-        calculateLastTiming();
+        boolean[] currentKeys = getInferredKeys(viewEntity);
+        boolean W = currentKeys[0];
+        boolean A = currentKeys[1];
+        boolean S = currentKeys[2];
+        boolean D = currentKeys[3];
+        boolean Space = currentKeys[4];
+        boolean Sprint = currentKeys[5];
+        boolean Sneak = currentKeys[6];
+
+        float moveStrafe = 0.0f;
+        if (A) moveStrafe += 1.0f;
+        if (D) moveStrafe -= 1.0f;
+
+        float moveForward = 0.0f;
+        if (W) moveForward += 1.0f;
+        if (S) moveForward -= 1.0f;
+
+        calculateLastTiming(viewEntity, W, A, S, D, Space, Sprint, Sneak, moveStrafe);
         doCheckpoints();
-
-        boolean W = gameSettings.keyBindForward.isKeyDown();
-        boolean S = gameSettings.keyBindBack.isKeyDown();
-        boolean A = gameSettings.keyBindLeft.isKeyDown();
-        boolean D = gameSettings.keyBindRight.isKeyDown();
-        boolean Space = gameSettings.keyBindJump.isKeyDown();
-        boolean Sneak = gameSettings.keyBindSneak.isKeyDown();
 
         boolean hasEffectiveMovement = (W != S) || (A != D);
         boolean isAnyInput = W || S || A || D || Space || Sneak;
@@ -162,21 +204,21 @@ public class ParkourTickListener {
 
         if (hasInputtedSinceReset) {
             // runtime
-            if (lastTick != null && !lastTick.onGround && mcPlayer.onGround) {
+            if (lastTick != null && !lastTick.onGround && viewEntity.onGround) {
                 if (CyvClientConfig.getBoolean("resetRunOnLand", false)) {
                     lastRunTime = 0;
                     runCounter = 0;
                 }
             }
 
-            if (lastTick != null && lastTick.onGround && !mcPlayer.onGround) {
+            if (lastTick != null && lastTick.onGround && !viewEntity.onGround) {
                 if (runCounter > 0) {
                     lastRunTime = runCounter;
                 }
                 runCounter = 0;
             }
 
-            if (mcPlayer.onGround) {
+            if (viewEntity.onGround) {
                 if (hasEffectiveMovement) {
                     if (lastTick != null && lastTick.onGround) {
                         runCounter++;
@@ -198,12 +240,12 @@ public class ParkourTickListener {
             }
 
             // waittime
-            if (mcPlayer.onGround && !hasEffectiveMovement && !Space && !Sneak && lastTick != null && lastTick.onGround) {
+            if (viewEntity.onGround && !hasEffectiveMovement && !Space && !Sneak && lastTick != null && lastTick.onGround) {
                 waitCounter++;
             } else {
                 if (waitCounter > 0) lastWaitTime = waitCounter;
                 waitCounter = 0;
-                if (!mcPlayer.onGround) waitCounter = 0;
+                if (!viewEntity.onGround) waitCounter = 0;
             }
         }
 
@@ -214,13 +256,17 @@ public class ParkourTickListener {
         if (waterDetectionLockout > 0) waterDetectionLockout--;
 
         if (lastTick != null) {
-            if ((!lastTick.onGround || !mcPlayer.onGround) && !mcPlayer.capabilities.isFlying) airtime++;
+            boolean isFlying = false;
+            if (viewEntity instanceof EntityPlayer) {
+                isFlying = ((EntityPlayer) viewEntity).capabilities.isFlying;
+            }
+            if ((!lastTick.onGround || !viewEntity.onGround) && !isFlying) airtime++;
 
-            x = mcPlayer.posX;
-            y = mcPlayer.posY;
-            z = mcPlayer.posZ;
-            f = mcPlayer.rotationYaw; //note: actual yaw and pitch are delayed by a tick
-            p = mcPlayer.rotationPitch;
+            x = viewEntity.posX;
+            y = viewEntity.posY;
+            z = viewEntity.posZ;
+            f = viewEntity.rotationYaw; //note: actual yaw and pitch are delayed by a tick
+            p = viewEntity.rotationPitch;
 
             vx = x - lastTick.x;
             vy = y - lastTick.y;
@@ -234,7 +280,7 @@ public class ParkourTickListener {
         }
 
         if (airtime == 1) { //jump tick
-            if (mcPlayer.movementInput.jump && vy >= 0) {
+            if (Space && vy >= 0) {
                 jx = x;
                 jy = y;
                 jz = z;
@@ -274,7 +320,7 @@ public class ParkourTickListener {
 
         //last 45
         if (lastTick.keys[0] && ((lastTick.keys[1] && lastTick.keys[3]) || (!lastTick.keys[1] && !lastTick.keys[3]))
-                && mcPlayer.movementInput.moveStrafe != 0 && mcPlayer.movementInput.moveForward != 0 && !mcPlayer.onGround) {
+                && moveStrafe != 0 && moveForward != 0 && !viewEntity.onGround) {
             last45 = f - lastTick.f;
         }
 
@@ -287,7 +333,7 @@ public class ParkourTickListener {
         }
 
         //hit tick
-        if (lastTick != null && mcPlayer.onGround && !lastTick.onGround && vy < 0) {
+        if (lastTick != null && viewEntity.onGround && !lastTick.onGround && vy < 0) {
             lx = lastTick.x;
             ly = lastTick.y;
             lz = lastTick.z;
@@ -302,6 +348,7 @@ public class ParkourTickListener {
         }
 
         if (landingBlock != null) { //must be lower than the landing to check it
+            landingBlock.calculateWalls();
 
             if (landingBlock.targetTick != -1) {
                 if (airtime == landingBlock.targetTick && !positionCheckedThisJump) {
@@ -319,14 +366,14 @@ public class ParkourTickListener {
                         (y >= landingBlock.pos.getY() - d - bottomOffset && y <= landingBlock.pos.getY() + 1 + d) &&
                         (z >= landingBlock.pos.getZ() - d && z <= landingBlock.pos.getZ() + 1 + d);
 
-                if (inZone && !mcPlayer.onGround && !positionCheckedThisJump && waterDetectionLockout == 0) {
+                if (inZone && !viewEntity.onGround && !positionCheckedThisJump && waterDetectionLockout == 0) {
                     LandingBlockOffset.refreshPb();
                     LandingBlockOffset.check(x, y, z, x + vx, y + vy, z + vz, lastTick.x, lastTick.y, lastTick.z, landingBlock, 0);
 
-                        LandingBlockOffset.finalizePb(landingBlock);
-                        if (landingBlock.lastPb != null && landingBlock.lastPb >= 0) {
-                            positionCheckedThisJump = true;
-                        }
+                    LandingBlockOffset.finalizePb(landingBlock);
+                    if (landingBlock.lastPb != null && landingBlock.lastPb >= 0) {
+                        positionCheckedThisJump = true;
+                    }
                 }
             } else {
                 LandingBlockOffset.refreshPb();
@@ -353,6 +400,7 @@ public class ParkourTickListener {
         }
 
         if (momentumBlock != null) { //must be lower than the landing to check it
+            momentumBlock.calculateWalls();
 
             if (momentumBlock.targetTick != -1) {
                 if (airtime == momentumBlock.targetTick && !positionCheckedThisJump) {
@@ -370,14 +418,14 @@ public class ParkourTickListener {
                         (y >= momentumBlock.pos.getY() - d - bottomOffset  && y <= momentumBlock.pos.getY() + 1 + d) &&
                         (z >= momentumBlock.pos.getZ() - d && z <= momentumBlock.pos.getZ() + 1 + d);
 
-                if (inZone && !mcPlayer.onGround  && !positionCheckedThisJump && waterDetectionLockout == 0) {
+                if (inZone && !viewEntity.onGround  && !positionCheckedThisJump && waterDetectionLockout == 0) {
                     LandingBlockOffset.refreshPb();
                     LandingBlockOffset.check(x, y, z, x + vx, y + vy, z + vz, lastTick.x, lastTick.y, lastTick.z, momentumBlock, 0);
 
-                        LandingBlockOffset.finalizePb(momentumBlock);
-                        if (momentumBlock.lastPb != null && momentumBlock.lastPb >= 0) {
-                            positionCheckedThisJump = true;
-                        }
+                    LandingBlockOffset.finalizePb(momentumBlock);
+                    if (momentumBlock.lastPb != null && momentumBlock.lastPb >= 0) {
+                        positionCheckedThisJump = true;
+                    }
                 }
             } else {
                 LandingBlockOffset.refreshPb();
@@ -403,19 +451,13 @@ public class ParkourTickListener {
             }
         }
 
-        boolean[] keys = new boolean[] {gameSettings.keyBindForward.isKeyDown(),
-                gameSettings.keyBindLeft.isKeyDown(),
-                gameSettings.keyBindBack.isKeyDown(), gameSettings.keyBindRight.isKeyDown(),
-                gameSettings.keyBindJump.isKeyDown(), gameSettings.keyBindSprint.isKeyDown(),
-                gameSettings.keyBindSneak.isKeyDown()};
-
         thirdLastTick = secondLastTick;
         secondLastTick = lastTick;
-        lastTick = new PosTick(mcPlayer, vx, vy, vz, airtime, keys);
-        lastTick.true_vx = mcPlayer.motionX;
-        lastTick.true_vy = mcPlayer.motionY;
-        lastTick.true_vz = mcPlayer.motionZ;
-        lastTick.hasCollidedHorizontally = mcPlayer.isCollidedHorizontally;
+        lastTick = new PosTick(viewEntity, vx, vy, vz, airtime, currentKeys);
+        lastTick.true_vx = viewEntity.motionX;
+        lastTick.true_vy = viewEntity.motionY;
+        lastTick.true_vz = viewEntity.motionZ;
+        lastTick.hasCollidedHorizontally = viewEntity.isCollidedHorizontally;
         if (lastTick.onGround) {
             if (airtime != 0) lastAirtime = airtime;
             airtime = 0;
@@ -450,7 +492,7 @@ public class ParkourTickListener {
             double min = inertiaMin;
             double max = inertiaMax;
 
-            int d = Integer.valueOf(CyvForge.config.configFields.get("df").value.toString());
+            int d = CyvClientConfig.getInt("df", 5);
             DecimalFormat df = new DecimalFormat("#");
             df.setMaximumFractionDigits(d);
 
@@ -502,14 +544,10 @@ public class ParkourTickListener {
 
     }
 
-    private static void calculateLastTiming() {
+    private static void calculateLastTiming(Entity viewEntity, boolean W, boolean A, boolean S, boolean D, boolean Space, boolean Sprint, boolean Sneak, float moveStrafe) {
         boolean showMS = CyvClientConfig.getBoolean("showMilliseconds", true);
-        GameSettings gameSettings = Minecraft.getMinecraft().gameSettings;
 
-        if (gameSettings.keyBindForward.isKeyDown() || //ANYTHING IS PRESSED
-                gameSettings.keyBindBack.isKeyDown() ||
-                gameSettings.keyBindLeft.isKeyDown() ||
-                gameSettings.keyBindRight.isKeyDown()) {
+        if (W || S || A || D) {
             lastMoveTime++;
             lastGroundMoveTime++;
             hasActed = true;
@@ -537,7 +575,7 @@ public class ParkourTickListener {
         }
 
         //jumping
-        if (gameSettings.keyBindJump.isKeyDown() && airtime == 0) {
+        if (Space && airtime == 0) {
             lastJumpTime = 0;
             hasActed = true;
 
@@ -551,7 +589,7 @@ public class ParkourTickListener {
                     lastTiming += " (" + diff + "ms)";
                 }
 
-                if (gameSettings.keyBindSprint.isKeyDown() || !gameSettings.keyBindForward.isKeyDown()) {
+                if (Sprint || !W) {
                     locked = true;
                 }
             }
@@ -576,7 +614,7 @@ public class ParkourTickListener {
         }
 
         //sneaking
-        if (gameSettings.keyBindSneak.isKeyDown()) {
+        if (Sneak) {
             if (lastSneakTime == -2) lastSneakTime = 0;
             else lastSneakTime++;
         }
@@ -585,8 +623,7 @@ public class ParkourTickListener {
             else lastSneakTime = -1;
         }
 
-        if ((gameSettings.keyBindSprint.isKeyDown() || lastSprintTime != -1)
-                && !lastTick.onGround ) {
+        if ((Sprint || lastSprintTime != -1) && !lastTick.onGround ) {
             lastSprintTime++;
             if (lastTiming.startsWith("Jam") && lastSprintTime == 0 && !locked && lastTick.keys[0]) {
                 if (lastJumpTime < 1) {
@@ -607,7 +644,7 @@ public class ParkourTickListener {
 
         //mark
         if (airtime > 0) {
-            if (gameSettings.keyBindForward.isKeyDown() && !lastTick.keys[0] && (lastTick.keys[1] || lastTick.keys[3])) {
+            if (W && !lastTick.keys[0] && (lastTick.keys[1] || lastTick.keys[3])) {
                 long diff = (moveTimestamp - jumpTimestamp) / 1000000;
                 String msTxt = (showMS && diff >= 0 && diff < 1000) ? " (" + diff + "ms)" : "";
 
@@ -622,8 +659,7 @@ public class ParkourTickListener {
 
         //strafejam
         if (CyvClientConfig.getBoolean("detectStrafejam", false) && airtime > 0) {
-            if (gameSettings.keyBindForward.isKeyDown() && !(gameSettings.keyBindLeft.isKeyDown() || gameSettings.keyBindRight.isKeyDown())
-                    && lastTick.keys[0] && (lastTick.keys[1] || lastTick.keys[3])) {
+            if (W && !(A || D) && lastTick.keys[0] && (lastTick.keys[1] || lastTick.keys[3])) {
 
                 long diff = (releaseTimestamp - jumpTimestamp) / 1000000;
                 String msTxt = (showMS && diff >= 0 && diff < 1000) ? " (" + diff + "ms)" : "";
@@ -649,10 +685,10 @@ public class ParkourTickListener {
                 String wobbledKey = "";
 
                 // 0=W, 1=A, 2=S, 3=D
-                if (gameSettings.keyBindForward.isKeyDown() && !lastTick.keys[0] && secondLastTick.keys[0]) wobbledKey += "W";
-                if (gameSettings.keyBindLeft.isKeyDown() && !lastTick.keys[1] && secondLastTick.keys[1]) wobbledKey += "A";
-                if (gameSettings.keyBindBack.isKeyDown() && !lastTick.keys[2] && secondLastTick.keys[2]) wobbledKey += "S";
-                if (gameSettings.keyBindRight.isKeyDown() && !lastTick.keys[3] && secondLastTick.keys[3]) wobbledKey += "D";
+                if (W && !lastTick.keys[0] && secondLastTick.keys[0]) wobbledKey += "W";
+                if (A && !lastTick.keys[1] && secondLastTick.keys[1]) wobbledKey += "A";
+                if (S && !lastTick.keys[2] && secondLastTick.keys[2]) wobbledKey += "S";
+                if (D && !lastTick.keys[3] && secondLastTick.keys[3]) wobbledKey += "D";
 
                 if (!wobbledKey.isEmpty()) {
                     long diff = (moveTimestamp - releaseTimestamp) / 1000000;
@@ -664,20 +700,16 @@ public class ParkourTickListener {
         }
 
         //reset
-        if (!(gameSettings.keyBindForward.isKeyDown() || //ANYTHING IS PRESSED
-                gameSettings.keyBindBack.isKeyDown() ||
-                gameSettings.keyBindLeft.isKeyDown() ||
-                gameSettings.keyBindRight.isKeyDown()) &&
-                Minecraft.getMinecraft().thePlayer.onGround) {
+        if (!(W || S || A || D) && viewEntity.onGround) {
             resetLastTiming();
         }
 
         //sidestep
-        if (gameSettings.keyBindJump.isKeyDown() && airtime == 0) {
-            if (((lastTick.strafe() != 0) && Minecraft.getMinecraft().thePlayer.movementInput.moveStrafe == 0)) {
+        if (Space && airtime == 0) {
+            if (((lastTick.strafe() != 0) && moveStrafe == 0)) {
                 sidestepTime = 1;
                 sidestep = 0;
-            } else if (Minecraft.getMinecraft().thePlayer.movementInput.moveStrafe != 0) {
+            } else if (moveStrafe != 0) {
                 sidestepTime = 1;
                 sidestep = 1;
             } else {
@@ -686,12 +718,12 @@ public class ParkourTickListener {
             }
 
         } else if (airtime > 0) {
-            if (sidestep == -1 && Minecraft.getMinecraft().thePlayer.movementInput.moveStrafe != 0) {
+            if (sidestep == -1 && moveStrafe != 0) {
                 sidestep = 0;
                 sidestepTime = airtime;
             }
 
-            if (sidestepTime == airtime && Minecraft.getMinecraft().thePlayer.movementInput.moveStrafe == 0.0f
+            if (sidestepTime == airtime && moveStrafe == 0.0f
                     && sidestep == 0) {
                 sidestepTime++;
             }
@@ -714,7 +746,7 @@ public class ParkourTickListener {
 
     public static class PosTick {
 
-        public PosTick(EntityPlayerSP player, double vx, double vy, double vz, int airtime, boolean[] keys) {
+        public PosTick(Entity player, double vx, double vy, double vz, int airtime, boolean[] keys) {
 
             this.x = player.posX;
             this.y = player.posY;
@@ -849,6 +881,9 @@ public class ParkourTickListener {
         double pY = p.lastTickPosY + (e.partialTicks * (p.posY - p.lastTickPosY));
         double pZ = p.lastTickPosZ + (e.partialTicks * (p.posZ - p.lastTickPosZ));
 
+        if (landingBlock != null) landingBlock.calculateWalls();
+        if (momentumBlock != null) momentumBlock.calculateWalls();
+
         GL11.glLineWidth(2);
         GlStateManager.disableDepth();
 
@@ -875,7 +910,29 @@ public class ParkourTickListener {
         if (CyvClientConfig.getBoolean("highlightLanding", false)) {
             if (landingBlock != null) {
                 for (AxisAlignedBB bb : landingBlock.bb) {
-                    AxisAlignedBB renderBB = bb.offset(-pX, -pY, -pZ);
+                    double rMinX = bb.minX;
+                    double rMaxX = bb.maxX;
+                    double rMinZ = bb.minZ;
+                    double rMaxZ = bb.maxZ;
+
+                    if ((bb.maxX - bb.minX) > 0.35) {
+                        if (landingBlock.xMinWall != null) rMinX = Math.max(bb.minX, landingBlock.xMinWall + 0.3);
+                        if (landingBlock.xMaxWall != null) rMaxX = Math.min(bb.maxX, landingBlock.xMaxWall - 0.3);
+                    }
+
+                    if ((bb.maxZ - bb.minZ) > 0.35) {
+                        if (landingBlock.zMinWall != null) rMinZ = Math.max(bb.minZ, landingBlock.zMinWall + 0.3);
+                        if (landingBlock.zMaxWall != null) rMaxZ = Math.min(bb.maxZ, landingBlock.zMaxWall - 0.3);
+                    }
+
+                    if (rMinX >= rMaxX || rMinZ >= rMaxZ) {
+                        rMinX = bb.minX;
+                        rMaxX = bb.maxX;
+                        rMinZ = bb.minZ;
+                        rMaxZ = bb.maxZ;
+                    }
+
+                    AxisAlignedBB renderBB = new AxisAlignedBB(rMinX, bb.minY, rMinZ, rMaxX, bb.maxY, rMaxZ).offset(-pX, -pY, -pZ);
                     RenderUtils.drawFilledBox(renderBB.expand(0.001, 0.001, 0.001), 0, 192, 255, 100);
                     RenderUtils.drawBoxOutline(renderBB.expand(0.001, 0.001, 0.001), 0, 192, 255, 200);
                 }
@@ -883,7 +940,29 @@ public class ParkourTickListener {
 
             if (momentumBlock != null) {
                 for (AxisAlignedBB bb : momentumBlock.bb) {
-                    AxisAlignedBB renderBB = bb.offset(-pX, -pY, -pZ);
+                    double rMinX = bb.minX;
+                    double rMaxX = bb.maxX;
+                    double rMinZ = bb.minZ;
+                    double rMaxZ = bb.maxZ;
+
+                    if ((bb.maxX - bb.minX) > 0.35) {
+                        if (momentumBlock.xMinWall != null) rMinX = Math.max(bb.minX, momentumBlock.xMinWall + 0.3);
+                        if (momentumBlock.xMaxWall != null) rMaxX = Math.min(bb.maxX, momentumBlock.xMaxWall - 0.3);
+                    }
+
+                    if ((bb.maxZ - bb.minZ) > 0.35) {
+                        if (momentumBlock.zMinWall != null) rMinZ = Math.max(bb.minZ, momentumBlock.zMinWall + 0.3);
+                        if (momentumBlock.zMaxWall != null) rMaxZ = Math.min(bb.maxZ, momentumBlock.zMaxWall - 0.3);
+                    }
+
+                    if (rMinX >= rMaxX || rMinZ >= rMaxZ) {
+                        rMinX = bb.minX;
+                        rMaxX = bb.maxX;
+                        rMinZ = bb.minZ;
+                        rMaxZ = bb.maxZ;
+                    }
+
+                    AxisAlignedBB renderBB = new AxisAlignedBB(rMinX, bb.minY, rMinZ, rMaxX, bb.maxY, rMaxZ).offset(-pX, -pY, -pZ);
                     RenderUtils.drawFilledBox(renderBB.expand(0.001, 0.001, 0.001), 255, 0, 0, 100);
                     RenderUtils.drawBoxOutline(renderBB.expand(0.001, 0.001, 0.001), 255, 0, 0, 200);
                 }
@@ -891,7 +970,6 @@ public class ParkourTickListener {
         }
 
         GlStateManager.enableDepth();
-
     }
 
     public static void triggerAntiCP() {

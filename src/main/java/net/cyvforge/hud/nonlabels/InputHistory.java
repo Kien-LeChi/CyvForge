@@ -4,6 +4,7 @@ import net.cyvforge.CyvForge;
 import net.cyvforge.config.CyvClientColorHelper;
 import net.cyvforge.config.CyvClientConfig;
 import net.cyvforge.event.events.InputHistoryManager;
+import net.cyvforge.hud.LabelBundle;
 import net.cyvforge.hud.structure.DraggableHUDElement;
 import net.cyvforge.hud.structure.ScreenPosition;
 import net.cyvforge.util.GuiUtils;
@@ -37,7 +38,7 @@ public class InputHistory extends DraggableHUDElement {
     private int getDynamicColumnWidth(String prefix, String suffix) {
         StringBuilder dummy = new StringBuilder(prefix);
         dummy.append("-180.");
-        for (int i = 0; i < CyvClientConfig.getInt("df", 5); i++) dummy.append("0");
+        dummy.append(LabelBundle.zeros());
         dummy.append(suffix);
         return Minecraft.getMinecraft().fontRendererObj.getStringWidth(dummy.toString());
     }

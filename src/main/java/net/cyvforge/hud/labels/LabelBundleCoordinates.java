@@ -1,215 +1,56 @@
 package net.cyvforge.hud.labels;
 
 import net.cyvforge.CyvForge;
-import net.cyvforge.config.CyvClientColorHelper;
 import net.cyvforge.config.CyvClientConfig;
 import net.cyvforge.event.events.ParkourTickListener;
 import net.cyvforge.hud.LabelBundle;
-import net.cyvforge.hud.structure.DraggableHUDElement;
 import net.cyvforge.hud.structure.ScreenPosition;
+import net.cyvforge.hud.structure.TextHUDElement;
+import net.cyvforge.hud.structure.MultiTextHUDElement;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-
-import java.text.DecimalFormat;
 
 public class LabelBundleCoordinates extends LabelBundle {
-
     public LabelBundleCoordinates() {
-        this.labels.add(new DraggableHUDElement() {
-            public String getName() {return "labelFPS";}
-            public String getDisplayName() {return "FPS";}
-            public int getWidth() {return getLabelWidth(this.getDisplayName());}
-            public int getHeight() {return getLabelHeight();}
-            public ScreenPosition getDefaultPosition() {return new ScreenPosition(0, 1);}
-            public void render(ScreenPosition pos) {
-                if (!this.isVisible) return;
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                drawString("FPS: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString(Minecraft.getDebugFPS(), pos.getAbsoluteX() + 1 + font.getStringWidth("FPS: ")
-                        , pos.getAbsoluteY() + 1, color2);
-            }
-            public void renderDummy(ScreenPosition pos) {
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                drawString("FPS: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString("360", pos.getAbsoluteX() + 1 + font.getStringWidth("FPS: ")
-                        , pos.getAbsoluteY() + 1, color2);
-            }
-        });
 
-        this.labels.add(new DraggableHUDElement() {
-            public String getName() {return "labelX";}
-            public String getDisplayName() {return "X Coord";}
-            public int getWidth() {return getLabelWidth(this.getDisplayName());}
-            public int getHeight() {return getLabelHeight();}
-            public ScreenPosition getDefaultPosition() {return new ScreenPosition(0, 10);}
-            public void render(ScreenPosition pos) {
-                if (!this.isVisible) return;
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                DecimalFormat df = CyvForge.df;
-                String x = df.format(CyvClientConfig.getBoolean("frameBased", false) ? mc.thePlayer.posX : ParkourTickListener.x);
-                drawString("X: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString(x, pos.getAbsoluteX() + 1 + font.getStringWidth("X: ")
-                        , pos.getAbsoluteY() + 1, color2);
-            }
-            public void renderDummy(ScreenPosition pos) {
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                StringBuilder str = new StringBuilder("0.");
-                for (int i=0; i<CyvClientConfig.getInt("df",5); i++) str.append("0");
-                drawString("X: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString(str.toString(), pos.getAbsoluteX() + 1 + font.getStringWidth("X: ")
-                        , pos.getAbsoluteY() + 1, color2);
-            }
-        });
+        // FPS
+        this.labels.add(new TextHUDElement("labelFPS", "FPS", "FPS: ", new ScreenPosition(0, 1), true,
+                () -> "" + Minecraft.getDebugFPS(), () -> "360"));
 
-        this.labels.add(new DraggableHUDElement() {
-            public String getName() {return "labelY";}
-            public String getDisplayName() {return "Y Coord";}
-            public int getWidth() {return getLabelWidth(this.getDisplayName());}
-            public int getHeight() {return getLabelHeight();}
-            public ScreenPosition getDefaultPosition() {return new ScreenPosition(0, 19);}
-            public void render(ScreenPosition pos) {
-                if (!this.isVisible) return;
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                DecimalFormat df = CyvForge.df;
-                String y = df.format(CyvClientConfig.getBoolean("frameBased", false) ? mc.thePlayer.posY : ParkourTickListener.y);
-                drawString("Y: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString(y, pos.getAbsoluteX() + 1 + font.getStringWidth("Y: ")
-                        , pos.getAbsoluteY() + 1, color2);
-            }
-            public void renderDummy(ScreenPosition pos) {
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                StringBuilder str = new StringBuilder("0.");
-                for (int i=0; i<CyvClientConfig.getInt("df",5); i++) str.append("0");
-                drawString("Y: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString(str.toString(), pos.getAbsoluteX() + 1 + font.getStringWidth("Y: ")
-                        , pos.getAbsoluteY() + 1, color2);
-            }
-        });
+        // X
+        this.labels.add(new TextHUDElement("labelX", "X Coord", "X: ", new ScreenPosition(0, 10), true,
+                () -> CyvForge.df.format(CyvClientConfig.getBoolean("frameBased", false) ? Minecraft.getMinecraft().getRenderViewEntity().posX : ParkourTickListener.x),
+                this::getDummyNumber));
 
-        this.labels.add(new DraggableHUDElement() {
-            public String getName() {return "labelZ";}
-            public String getDisplayName() {return "Z Coord";}
-            public int getWidth() {return getLabelWidth(this.getDisplayName());}
-            public int getHeight() {return getLabelHeight();}
-            public ScreenPosition getDefaultPosition() {return new ScreenPosition(0, 28);}
-            public void render(ScreenPosition pos) {
-                if (!this.isVisible) return;
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                DecimalFormat df = CyvForge.df;
-                String z = df.format(CyvClientConfig.getBoolean("frameBased", false) ? mc.thePlayer.posZ : ParkourTickListener.z);
-                drawString("Z: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString(z, pos.getAbsoluteX() + 1 + font.getStringWidth("Z: ")
-                        , pos.getAbsoluteY() + 1, color2);
-            }
-            public void renderDummy(ScreenPosition pos) {
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                StringBuilder str = new StringBuilder("0.");
-                for (int i=0; i<CyvClientConfig.getInt("df",5); i++) str.append("0");
-                drawString("Z: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString(str.toString(), pos.getAbsoluteX() + 1 + font.getStringWidth("Z: ")
-                        , pos.getAbsoluteY() + 1, color2);
-            }
-        });
+        // Y
+        this.labels.add(new TextHUDElement("labelY", "Y Coord", "Y: ", new ScreenPosition(0, 19), true,
+                () -> CyvForge.df.format(CyvClientConfig.getBoolean("frameBased", false) ? Minecraft.getMinecraft().getRenderViewEntity().posY : ParkourTickListener.y),
+                this::getDummyNumber));
 
-        this.labels.add(new DraggableHUDElement() {
-            public String getName() {return "labelYaw";}
-            public String getDisplayName() {return "Yaw";}
-            public int getWidth() {return getLabelWidth(this.getDisplayName());}
-            public int getHeight() {return getLabelHeight();}
-            public ScreenPosition getDefaultPosition() {return new ScreenPosition(0, 37);}
-            public void render(ScreenPosition pos) {
-                if (!this.isVisible) return;
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                DecimalFormat df = CyvForge.df;
-                float yaw;
-                if (CyvClientConfig.getBoolean("frameBased", false)) {
-                    yaw = ParkourTickListener.formatYaw(mc.thePlayer.rotationYaw);
-                } else {
-                    yaw = (ParkourTickListener.lastTick == null) ? 0 : ParkourTickListener.formatYaw(ParkourTickListener.lastTick.f);
+        // Z
+        this.labels.add(new TextHUDElement("labelZ", "Z Coord", "Z: ", new ScreenPosition(0, 28), true,
+                () -> CyvForge.df.format(CyvClientConfig.getBoolean("frameBased", false) ? Minecraft.getMinecraft().getRenderViewEntity().posZ : ParkourTickListener.z),
+                this::getDummyNumber));
+
+        // YAW
+        this.labels.add(new MultiTextHUDElement("labelYaw", "Yaw", new ScreenPosition(0, 37), true,
+                () -> {
+                    float yaw = CyvClientConfig.getBoolean("frameBased", false) ? Minecraft.getMinecraft().getRenderViewEntity().rotationYaw : ((ParkourTickListener.lastTick == null) ? 0 : ParkourTickListener.lastTick.f);
+                    float fYaw = ParkourTickListener.formatYaw(yaw);
+                    String axis = CyvClientConfig.getBoolean("showFacingAxis", false) ? ((Math.abs(fYaw) > 45 && Math.abs(fYaw) < 135) ? " X" : " Z") : "";
+
+                    return new String[] { "F: ", CyvForge.df.format(fYaw) + "\u00B0", axis };
+                },
+                () -> {
+                    String axis = CyvClientConfig.getBoolean("showFacingAxis", false) ? " Z" : "";
+                    return new String[] { "F: ", getDummyNumber() + "\u00B0", axis };
                 }
+        ));
 
-                String f = df.format(yaw) + "\u00B0";
-
-                drawString("F: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString(f, pos.getAbsoluteX() + 1 + font.getStringWidth("F: ")
-                        , pos.getAbsoluteY() + 1, color2);
-
-                if (CyvClientConfig.getBoolean("showFacingAxis", false)) {
-                    float absFacing = Math.abs(yaw);
-                    drawString(((absFacing > 45 && absFacing < 135) ? " X" : " Z")
-                            ,pos.getAbsoluteX() + 1 + font.getStringWidth("F: " + f), pos.getAbsoluteY() + 1, color1);
-                }
-
-            }
-            public void renderDummy(ScreenPosition pos) {
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                StringBuilder str = new StringBuilder("0.");
-                for (int i=0; i<CyvClientConfig.getInt("df",5); i++) str.append("0");
-                drawString("F: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString(str+"\u00B0", pos.getAbsoluteX() + 1 + font.getStringWidth("F: ")
-                        , pos.getAbsoluteY() + 1, color2);
-
-                if (CyvClientConfig.getBoolean("showFacingAxis", false)) {
-                    drawString(" Z",pos.getAbsoluteX() + 1 + font.getStringWidth("F: " + str+"\u00B0"), pos.getAbsoluteY() + 1, color1);
-                }
-            }
-        });
-
-        this.labels.add(new DraggableHUDElement() {
-            public String getName() {return "labelPitch";}
-            public String getDisplayName() {return "Pitch";}
-            public int getWidth() {return getLabelWidth(this.getDisplayName());}
-            public int getHeight() {return getLabelHeight();}
-            public ScreenPosition getDefaultPosition() {return new ScreenPosition(0, 46);}
-            public void render(ScreenPosition pos) {
-                if (!this.isVisible) return;
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                DecimalFormat df = CyvForge.df;
-                float pitch;
-                if (CyvClientConfig.getBoolean("frameBased", false)) {
-                    pitch = mc.thePlayer.rotationPitch;
-                } else {
-                    pitch = (ParkourTickListener.lastTick == null) ? 0 : ParkourTickListener.lastTick.p;
-                }
-                String p = df.format(pitch) + "\u00B0";
-                drawString("Pitch: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString(p, pos.getAbsoluteX() + 1 + font.getStringWidth("Pitch: ")
-                        , pos.getAbsoluteY() + 1, color2);
-
-            }
-            public void renderDummy(ScreenPosition pos) {
-                long color1 = CyvClientColorHelper.color1.getDrawColor();
-                long color2 = CyvClientColorHelper.color2.getDrawColor();
-                FontRenderer font = mc.fontRendererObj;
-                StringBuilder str = new StringBuilder("0.");
-                for (int i=0; i<CyvClientConfig.getInt("df",5); i++) str.append("0");
-                drawString("Pitch: ", pos.getAbsoluteX() + 1, pos.getAbsoluteY() + 1, color1);
-                drawString(str+"\u00B0", pos.getAbsoluteX() + 1 + font.getStringWidth("Pitch: ")
-                        , pos.getAbsoluteY() + 1, color2);
-            }
-        });
+        // PITCH
+        this.labels.add(new TextHUDElement("labelPitch", "Pitch", "Pitch: ", new ScreenPosition(0, 46), true,
+                () -> {
+                    float pitch = CyvClientConfig.getBoolean("frameBased", false) ? Minecraft.getMinecraft().getRenderViewEntity().rotationPitch : ((ParkourTickListener.lastTick == null) ? 0 : ParkourTickListener.lastTick.p);
+                    return CyvForge.df.format(pitch) + "\u00B0";
+                }, () -> getDummyNumber() + "\u00B0"));
     }
-
 }

@@ -24,7 +24,7 @@ public class CommandInitializer  {
         CyvCommand[] e = new CyvCommand[] {};
 
         cyvCommands.addAll(Arrays.asList(new CyvCommand[]{ //config commands
-                new CommandHelp(), new CommandColor1(), new CommandColor2(), new CommandColors(), new CommandDf(),
+                new CommandHelp(), new CommandColor(1), new CommandColor(2), new CommandColors(), new CommandDf(),
                 new CommandConfig(), new CommandGui(), new CommandInertia(), new CommandPositionChecker(),
                 new CommandFullbright(), new CommandResetGui(), new CommandTogglesprint()
         }));

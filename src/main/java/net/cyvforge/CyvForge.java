@@ -34,7 +34,7 @@ import java.util.List;
 @Mod(modid = CyvForge.MODID, version = CyvForge.VERSION)
 public class CyvForge {
 	public static final String MODID = "cyvforge";
-	public static final String VERSION = "1.10.1";
+	public static final String VERSION = "1.10.2";
 
 	public static CyvClientConfig config = new CyvClientConfig();
 	public static DecimalFormat df = new DecimalFormat("#");
@@ -70,7 +70,7 @@ public class CyvForge {
 		MinecraftForge.EVENT_BUS.register(new DiscordRPCEventManager());
 		MinecraftForge.EVENT_BUS.register(new InputHistoryManager());
 
-		Minecraft.getMinecraft().gameSettings.gammaSetting = CyvClientConfig.getBoolean("fullbright", true) ? 1000f : 1.0f;
+		Minecraft.getMinecraft().gameSettings.gammaSetting = CyvClientConfig.getBoolean("fullbright", false) ? 1000f : 1.0f;
 		Minecraft.getMinecraft().mouseHelper = new CyvMouseHelper();
 
 		LogManager.getLogger().info("CyvForge mod initialized!");
@@ -105,9 +105,14 @@ public class CyvForge {
 		IBlockState blockState = mc.theWorld.getBlockState(pos);
 		Block block = blockState.getBlock();
 		AxisAlignedBB mask = new AxisAlignedBB(pos.getX(), pos.getY(), pos.getZ(),
-				pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
+				pos.getX() + 1, pos.getY() + 2, pos.getZ() + 1);
 		List<AxisAlignedBB> list = new ArrayList<AxisAlignedBB>();
 		block.addCollisionBoxesToList(mc.theWorld, pos, blockState, mask, list, mc.thePlayer);
+
+		if (list.isEmpty() && (block instanceof net.minecraft.block.BlockLadder || block instanceof net.minecraft.block.BlockVine)) {
+			AxisAlignedBB sel = block.getSelectedBoundingBox(world != null ? world : mc.theWorld, pos);
+			if (sel != null) list.add(sel);
+		}
 
 		return list;
 	}

@@ -17,6 +17,12 @@ out
 build
 .gradle
 
+# archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
 # other
 eclipse
 run

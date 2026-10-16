@@ -2,7 +2,7 @@ package net.cyvforge.event.events;
 
 import net.cyvforge.config.CyvClientConfig;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.settings.GameSettings;
+import net.minecraft.entity.Entity;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.lwjgl.input.Mouse;
@@ -58,7 +58,8 @@ public class InputHistoryManager {
     public void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getMinecraft();
-        if (mc.thePlayer == null) return;
+        Entity viewEntity = mc.getRenderViewEntity();
+        if (viewEntity == null) return;
 
         // Reset
         if (CyvClientConfig.getBoolean("ih_resetRMB", true) && Mouse.isButtonDown(1)) {
@@ -68,17 +69,17 @@ public class InputHistoryManager {
             return;
         }
 
-        GameSettings gs = mc.gameSettings;
-        boolean w = gs.keyBindForward.isKeyDown();
-        boolean a = gs.keyBindLeft.isKeyDown();
-        boolean s = gs.keyBindBack.isKeyDown();
-        boolean d = gs.keyBindRight.isKeyDown();
-        boolean jmp = gs.keyBindJump.isKeyDown();
-        boolean spr = gs.keyBindSprint.isKeyDown();
-        boolean snk = gs.keyBindSneak.isKeyDown();
+        boolean[] currentKeys = net.cyvforge.event.events.ParkourTickListener.getInferredKeys(viewEntity);
+        boolean w = currentKeys[0];
+        boolean a = currentKeys[1];
+        boolean s = currentKeys[2];
+        boolean d = currentKeys[3];
+        boolean jmp = currentKeys[4];
+        boolean spr = currentKeys[5];
+        boolean snk = currentKeys[6];
 
-        float currentYaw = mc.thePlayer.rotationYaw;
-        boolean onGround = mc.thePlayer.onGround;
+        float currentYaw = viewEntity.rotationYaw;
+        boolean onGround = viewEntity.onGround;
 
         if (skipUntilGround) {
             if (!onGround) {

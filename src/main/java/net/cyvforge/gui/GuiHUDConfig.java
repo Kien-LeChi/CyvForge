@@ -50,8 +50,8 @@ public class GuiHUDConfig {
                 PanelUtils.addSlider(panels, "ih_historyLength", "History Length", 1, 50, screen);
                 PanelUtils.addToggle(panels, "ih_alwaysVisible", "Inputs Always Visible", screen);
 
-                panels.add(new ConfigPanelIntegerSlider(panels, "ih_visLength", "Visibility Length (ticks)", 10, 200, screen) {
-                    @Override public boolean isEnabled() { return !CyvClientConfig.getBoolean("- ih_alwaysVisible", true); }
+                panels.add(new ConfigPanelIntegerSlider(panels, "ih_visLength", "- Visibility Length (ticks)", 10, 200, screen) {
+                    @Override public boolean isEnabled() { return !CyvClientConfig.getBoolean("ih_alwaysVisible", true); }
                 });
 
                 PanelUtils.addSwitcher(panels, "ih_colorMode", "Text Color", new String[]{"White", "Color1 - Color2", "Color2 - Color1"}, screen);

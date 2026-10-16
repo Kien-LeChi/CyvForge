@@ -148,7 +148,7 @@ public class TurnHUD extends LabelBundle {
     public int getLabelWidth(String s, boolean angle) {
         font = Minecraft.getMinecraft().fontRendererObj;
         StringBuilder str = new StringBuilder(s + ": 000.");
-        for (int i = 0; i< CyvClientConfig.getInt("df", 5); i++) str.append("0");
+        str.append(zeros());
         if (angle) str.append("\u00B0");
         return font.getStringWidth(str.toString());
     }
