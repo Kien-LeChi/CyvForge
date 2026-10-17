@@ -127,8 +127,6 @@ public class LandingBlockOffset {
         if (left > Math.abs(right)) res = right;
         else if (right > Math.abs(left)) res = left;
 
-        if (Math.abs(res) < 0.001) res = 0.0;
-
         return res;
     }
 
@@ -150,8 +148,6 @@ public class LandingBlockOffset {
         double res = Math.max(front, back);
         if (front > Math.abs(back)) res = back;
         else if (back > Math.abs(front)) res = front;
-
-        if (Math.abs(res) < 0.001) res = 0.0;
 
         return res;
     }
