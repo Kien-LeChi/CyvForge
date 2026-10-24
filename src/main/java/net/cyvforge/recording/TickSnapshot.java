@@ -1,6 +1,8 @@
 package net.cyvforge.recording;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /** Observed position and incoming (pre-cutoff) motion, never simulated. */
 public final class TickSnapshot {
@@ -34,6 +36,31 @@ public final class TickSnapshot {
             if (keys[i]) text.append(names[i]).append(' ');
         }
         return text.length() == 0 ? "None" : text.toString().trim();
+    }
+
+    /** Shared by row tooltips and world-marker hover for both data sources. */
+    public List<String> tooltip(String source, int tickNumber) {
+        return Arrays.asList(source + " tick " + tickNumber, "Inputs: " + inputs(),
+                "X: " + x, "Y: " + y, "Z: " + z,
+                "Raw VX: " + vx, "Raw VY: " + vy, "Raw VZ: " + vz,
+                "Sprinting: " + sprinting + " | Sprint key: " + keyDown(5));
+    }
+
+    /** Legacy input-only rows have no observed velocity or position. */
+    public static TickSnapshot fromMacroRow(List<String> row) {
+        if (row == null || row.size() < 18) return null;
+        try {
+            boolean[] keys = new boolean[8];
+            for (int i = 0; i < keys.length; i++) keys[i] = Boolean.parseBoolean(row.get(i));
+            keys[5] = Boolean.parseBoolean(row.get(16));
+            // Macro yaw/pitch fields are turn deltas, not absolute view angles.
+            return new TickSnapshot(keys, Boolean.parseBoolean(row.get(17)),
+                    Double.parseDouble(row.get(10)), Double.parseDouble(row.get(11)), Double.parseDouble(row.get(12)),
+                    Float.NaN, Float.NaN,
+                    Double.parseDouble(row.get(13)), Double.parseDouble(row.get(14)), Double.parseDouble(row.get(15)));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return null;
+        }
     }
 
     public ArrayList<String> toMacroRow(float yawDelta, float pitchDelta) {

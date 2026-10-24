@@ -39,6 +39,15 @@ decimal-format rounding. It is incoming motion, not a calculated position delta.
 The clip list rounds positions only for compact row summaries; selected details
 show full precision. Manually editing macro inputs does not recompute observations.
 
+Hover any tick row in the clip inspector or macro editor to see its inputs,
+XYZ position, and full-precision **Raw VX / Raw VY / Raw VZ** without selecting it.
+Aim the crosshair at a world tick marker for the same tooltip beside the crosshair;
+the hovered marker is highlighted. This works for both captured clips and normal
+recordings. Stopping a recording, or loading it in the macro editor, displays its
+observed path for world-marker inspection. Opening `/cyv clip show` restores the
+last captured clip. Rows from older input-only recordings report that position
+and raw velocity are unavailable, rather than fabricating zero values.
+
 Macro JSON keeps its original first ten string fields. New recordings append:
 `x, y, z, rawVx, rawVy, rawVz, physicalSprintKey, activeSprinting`. Existing 9/10-field
 files still load; those rows have no position/velocity observations. The macro

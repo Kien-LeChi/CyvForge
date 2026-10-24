@@ -9,6 +9,7 @@ import org.lwjgl.input.Mouse;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Collections;
 
 /** Read-only tick inspector. Closing it leaves the observed path visible. */
 public class GuiClip extends GuiScreen {
@@ -30,12 +31,13 @@ public class GuiClip extends GuiScreen {
             return;
         }
         TickSnapshot tick = ticks.get(ClipViewer.selected());
-        drawCenteredString(fontRendererObj, "Clip - " + ticks.size() + " ticks / " + ticks.size() / 20.0 + "s", width / 2, 10, 0x50DCFF);
-        String[] details = {"Tick " + (ClipViewer.selected() + 1) + ": " + tick.inputs(),
+        drawCenteredString(fontRendererObj, ClipViewer.sourceName() + " - " + ticks.size() + " ticks / " + ticks.size() / 20.0 + "s", width / 2, 10, 0x50DCFF);
+        String[] details = {"Tick " + ClipViewer.tickNumber(ClipViewer.selected()) + ": " + tick.inputs(),
                 "Sprinting: " + tick.sprinting + " | Sprint key: " + tick.keyDown(5),
                 "X: " + tick.x, "Y: " + tick.y, "Z: " + tick.z,
                 "Raw VX: " + tick.vx, "Raw VY: " + tick.vy, "Raw VZ: " + tick.vz,
-                "Yaw: " + tick.yaw + " | Pitch: " + tick.pitch,
+                Float.isNaN(tick.yaw) ? "Absolute yaw/pitch not stored in this recording."
+                        : "Yaw: " + tick.yaw + " | Pitch: " + tick.pitch,
                 "Velocity is incoming motion before Minecraft's cutoff."};
         for (int i = 0; i < details.length; i++) fontRendererObj.drawString(details[i], 12, 28 + i * 11, 0xFFFFFF);
 
@@ -44,11 +46,21 @@ public class GuiClip extends GuiScreen {
             TickSnapshot row = ticks.get(i);
             drawRect(8, top, width - 8, top + ROW_HEIGHT - 1,
                     i == ClipViewer.selected() ? 0xB0406170 : 0x80505050);
-            fontRendererObj.drawString("Tick " + (i + 1) + " | " + row.inputs(), 12, top + 2, 0xFFFFFF);
+            fontRendererObj.drawString("Tick " + ClipViewer.tickNumber(i) + " | " + row.inputs(), 12, top + 2, 0xFFFFFF);
             String position = "XYZ: " + CyvForge.df.format(row.x) + ", " + CyvForge.df.format(row.y) + ", " + CyvForge.df.format(row.z);
             fontRendererObj.drawString(position, 12, top + 12, 0xBBBBBB);
         }
         drawCenteredString(fontRendererObj, "Click / scroll / arrows: select tick | Esc: view path", width / 2, height - 14, 0xCCCCCC);
+        List<String> tooltip = hoverTooltip(mouseX, mouseY);
+        if (!tooltip.isEmpty()) drawHoveringText(tooltip, mouseX, mouseY);
+    }
+
+    public List<String> hoverTooltip(int mouseX, int mouseY) {
+        if (mouseX < 8 || mouseX >= width - 8 || mouseY < LIST_TOP
+                || mouseY >= LIST_TOP + visibleRows() * ROW_HEIGHT
+                || (mouseY - LIST_TOP) % ROW_HEIGHT == ROW_HEIGHT - 1) return Collections.emptyList();
+        int index = firstRow + (mouseY - LIST_TOP) / ROW_HEIGHT;
+        return index < ClipViewer.ticks().size() ? ClipViewer.tooltip(index) : Collections.emptyList();
     }
 
     private int visibleRows() {

@@ -78,6 +78,7 @@ public class CommandMacro extends CyvCommand {
         if (!isRecording) return;
         isRecording = false;
         saveMacroToFile();
+        ClipViewer.showRecording(macro);
         CyvForge.sendChatMessage("Recording stopped. Saved to: " + MacroFileInit.macroFile.getName());
     }
 

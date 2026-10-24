@@ -10,6 +10,8 @@ import net.cyvforge.config.ColorTheme;
 import net.cyvforge.config.CyvClientConfig;
 import net.cyvforge.event.MacroFileInit;
 import net.cyvforge.event.events.GuiHandler;
+import net.cyvforge.recording.ClipViewer;
+import net.cyvforge.recording.TickSnapshot;
 import net.cyvforge.util.defaults.CyvGui;
 import net.cyvforge.util.GuiUtils;
 import net.minecraft.client.Minecraft;
@@ -109,6 +111,7 @@ public class GuiMacro extends CyvGui {
                         }
 
                         if (line.size() > 10) macroLine.observations.addAll(line.subList(10, line.size()));
+                        macroLine.observedTick = TickSnapshot.fromMacroRow(line);
 
                         macroLines.add(macroLine);
 
@@ -120,6 +123,7 @@ public class GuiMacro extends CyvGui {
         maxScroll = (int) Math.max(0, Minecraft.getMinecraft().fontRendererObj.FONT_HEIGHT * 2 * Math.ceil(macroLines.size()) - (sizeY-20));
         if (scroll > maxScroll) scroll = maxScroll;
         if (scroll < 0) scroll = 0;
+        if (!CommandMacro.isRecording && macro != null) ClipViewer.showRecording(macro);
     }
 
     @Override
@@ -214,6 +218,23 @@ public class GuiMacro extends CyvGui {
         GuiUtils.drawRoundedRect(sr.getScaledWidth()/2+sizeX/2+2, amount,
                 sr.getScaledWidth()/2+sizeX/2+8, amount+scrollbarHeight, 3, color);
 
+        // Tooltips must be drawn after disabling the row scissor and drawing controls.
+        int rowTop = sr.getScaledHeight() / 2 - sizeY / 2 + fontRendererObj.FONT_HEIGHT * 2;
+        int rowBottom = sr.getScaledHeight() / 2 + sizeY / 2 - 3;
+        if (mouseY >= rowTop && mouseY < rowBottom) {
+            for (int i = 0; i < macroLines.size(); i++) {
+                MacroLine line = macroLines.get(i);
+                if (line.isPressed(i, mouseX, mouseY, 0)) {
+                    java.util.List<String> tooltip = line.observedTick == null
+                            ? java.util.Arrays.asList("Recording tick " + (i + 1),
+                                    "No stored position or raw velocity in this row.")
+                            : line.observedTick.tooltip("Recording", i + 1);
+                    drawHoveringText(tooltip, mouseX, mouseY);
+                    break;
+                }
+            }
+        }
+
     }
 
     @Override
@@ -307,6 +328,7 @@ public class GuiMacro extends CyvGui {
                 newLine.sneak = oldLine.sneak;
                 newLine.rmb = oldLine.rmb;
                 newLine.observations.addAll(oldLine.observations);
+                newLine.observedTick = oldLine.observedTick;
 
                 newLine.yawField.setText(oldLine.yawField.getText());
                 newLine.pitchField.setText(oldLine.pitchField.getText());
@@ -455,6 +477,7 @@ public class GuiMacro extends CyvGui {
 
         public boolean w, a, s, d, jump, sprint, sneak, rmb;
         public ArrayList<String> observations = new ArrayList<>();
+        public TickSnapshot observedTick;
 
         GuiTextField yawField, pitchField;
 
