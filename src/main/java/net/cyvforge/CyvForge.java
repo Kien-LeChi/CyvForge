@@ -12,6 +12,7 @@ import net.cyvforge.event.events.GuiHandler;
 import net.cyvforge.event.events.KeyInputHandler;
 import net.cyvforge.event.events.MacroListener;
 import net.cyvforge.event.events.MacroRecorder;
+import net.cyvforge.recording.ClipViewer;
 import net.cyvforge.event.events.ParkourTickListener;
 import net.cyvforge.event.events.SignCommandListener;
 import net.cyvforge.hud.HUDManager;
@@ -64,6 +65,7 @@ public class CyvForge {
 		MinecraftForge.EVENT_BUS.register(new GuiHandler());
 		MinecraftForge.EVENT_BUS.register(new ChatSuggestionsHandler());
 		MinecraftForge.EVENT_BUS.register(new MacroRecorder());
+		MinecraftForge.EVENT_BUS.register(new ClipViewer());
 
 		ChatMacroManager.load();
 		CommandInitializer.register(); //register mod commands

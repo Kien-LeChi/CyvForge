@@ -111,3 +111,9 @@ jar {
 runClient {
     args "--username", "Aanya_"
 }
+
+task recordingTest(type: JavaExec, dependsOn: testClasses) {
+    classpath = sourceSets.test.runtimeClasspath
+    main = 'net.cyvforge.recording.RecordingTest'
+}
+check.dependsOn recordingTest

@@ -4,3 +4,4 @@ key.openmpkgui.desc=Open MPK GUI
 key.togglesprint.desc=Toggle Sprint
 key.runmacro.desc=Run Macro
 key.stopmacro.desc=Stop Macro
+key.clip.desc=Capture Recent Input and Position Clip

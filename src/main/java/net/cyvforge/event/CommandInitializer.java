@@ -1,6 +1,7 @@
 package net.cyvforge.event;
 
 import net.cyvforge.command.CommandGui;
+import net.cyvforge.command.CommandClip;
 import net.cyvforge.command.CommandHelp;
 import net.cyvforge.command.CommandInertia;
 import net.cyvforge.command.CommandPositionChecker;
@@ -41,6 +42,7 @@ public class CommandInitializer  {
         }));
 
         cyvCommands.add(new CommandMacro());
+        cyvCommands.add(new CommandClip());
 
         cyvCommands.add(new CommandFullbright());
 

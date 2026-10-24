@@ -108,6 +108,8 @@ public class GuiMacro extends CyvGui {
                             macroLine.pitchField.setText("" + Double.valueOf(line.get(9)));
                         }
 
+                        if (line.size() > 10) macroLine.observations.addAll(line.subList(10, line.size()));
+
                         macroLines.add(macroLine);
 
                     } catch (Exception e) {}
@@ -134,6 +136,22 @@ public class GuiMacro extends CyvGui {
         this.addRow.draw(mouseX, mouseY);
         this.duplicateRow.draw(mouseX, mouseY);
         this.deleteRow.draw(mouseX, mouseY);
+
+        if (selectedIndex >= 0 && selectedIndex < macroLines.size()) {
+            MacroLine selected = macroLines.get(selectedIndex);
+            int detailX = (sr.getScaledWidth() + sizeY + 30) / 2 - 72;
+            int detailY = sr.getScaledHeight() / 2 - sizeY / 2 + 108;
+            GuiUtils.drawString("Tick " + (selectedIndex + 1) + " (recorded)", detailX, detailY, 0xFFFFFFFF);
+            String[] labels = {"X", "Y", "Z", "Raw VX", "Raw VY", "Raw VZ", "Sprint key", "Sprinting"};
+            if (selected.observations.size() >= labels.length) {
+                for (int i = 0; i < labels.length; i++) {
+                    String text = labels[i] + ": " + selected.observations.get(i);
+                    fontRendererObj.drawSplitString(text, detailX, detailY + 14 + i * 21, 142, 0xFFFFFFFF);
+                }
+            } else {
+                fontRendererObj.drawSplitString("No position or velocity data in this legacy/manual row.", detailX, detailY + 14, 142, 0xFFBBBBBB);
+            }
+        }
 
         GuiUtils.drawRoundedRect((sr.getScaledWidth() + sizeY +30)/2 - 75, sr.getScaledHeight()/2 - sizeY/2 + 20,
                 (sr.getScaledWidth() + sizeY +30)/2 + 20, sr.getScaledHeight()/2 - sizeY/2 + 20 + fontRendererObj.FONT_HEIGHT*7/4,
@@ -288,6 +306,7 @@ public class GuiMacro extends CyvGui {
                 newLine.sprint = oldLine.sprint;
                 newLine.sneak = oldLine.sneak;
                 newLine.rmb = oldLine.rmb;
+                newLine.observations.addAll(oldLine.observations);
 
                 newLine.yawField.setText(oldLine.yawField.getText());
                 newLine.pitchField.setText(oldLine.pitchField.getText());
@@ -413,6 +432,7 @@ public class GuiMacro extends CyvGui {
                     macroString.add("0.0");
                 }
 
+                macroString.addAll(line.observations);
                 macroList.add(macroString);
                 fileWriter.write(gson.toJson(macroString) + (macroLines.indexOf(line) == macroLines.size()-1 ? "" : ",") + System.getProperty("line.separator"));
             }
@@ -434,6 +454,7 @@ public class GuiMacro extends CyvGui {
         int height = mc.fontRendererObj.FONT_HEIGHT*2;
 
         public boolean w, a, s, d, jump, sprint, sneak, rmb;
+        public ArrayList<String> observations = new ArrayList<>();
 
         GuiTextField yawField, pitchField;
 

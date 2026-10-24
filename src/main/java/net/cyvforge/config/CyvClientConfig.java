@@ -53,8 +53,7 @@ public class CyvClientConfig {
         configFields.put("currentMacro", new ConfigValue<String>("macro"));
         configFields.put("smoothMacro", new ConfigValue<Boolean>(false));
         configFields.put("macroHUDColor", new ConfigValue<String>("Default"));
-        configFields.put("macroClipEnabled", new ConfigValue<Boolean>(false));
-        configFields.put("macroClipTicks", new ConfigValue<Integer>(100));
+        configFields.put("macroClipSeconds", new ConfigValue<Integer>(10));
 
         // inertia listener
         configFields.put("inertiaEnabled", new ConfigValue<Boolean>(false));

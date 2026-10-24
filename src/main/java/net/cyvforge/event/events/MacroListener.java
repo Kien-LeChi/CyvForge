@@ -56,10 +56,12 @@ public class MacroListener {
     }
 
     @SubscribeEvent
-    public void onTick(TickEvent.ClientTickEvent event) {
+    public void onTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
         Minecraft mc = Minecraft.getMinecraft();
         EntityPlayerSP player = mc.thePlayer;
+        // Run after physical keyboard polling, before vanilla updates sprint/movement.
+        if (event.player != player) return;
         GameSettings options = mc.gameSettings;
 
         //parse json file

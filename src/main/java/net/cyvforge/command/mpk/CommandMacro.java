@@ -11,7 +11,7 @@ import net.cyvforge.gui.GuiMacro;
 import net.cyvforge.util.defaults.CyvCommand;
 import net.minecraft.client.Minecraft;
 import net.minecraft.command.ICommandSender;
-import net.cyvforge.event.events.MacroRecorder;
+import net.cyvforge.recording.ClipViewer;
 import java.util.List;
 
 import java.io.FileNotFoundException;
@@ -55,6 +55,10 @@ public class CommandMacro extends CyvCommand {
     }
 
     public static void startRecording() {
+        if (macroRunning != 0) {
+            CyvForge.sendChatMessage("Stop macro playback before recording.");
+            return;
+        }
         if (isRecording) {
             CyvForge.sendChatMessage("Already recording!");
             return;
@@ -78,26 +82,7 @@ public class CommandMacro extends CyvCommand {
     }
 
     public static void clipMacro() {
-        if (!CyvClientConfig.getBoolean("macroClipEnabled", false)) {
-            CyvForge.sendChatMessage("Macro clip is disabled in settings!");
-            return;
-        }
-
-        if (MacroRecorder.clipBuffer.isEmpty()) {
-            CyvForge.sendChatMessage("No movement data to clip!");
-            return;
-        }
-
-        String nextClipName = MacroFileInit.getNextAvailableName("Clip");
-        CyvClientConfig.set("currentMacro", nextClipName);
-        net.cyvforge.event.ConfigLoader.save(CyvForge.config, false);
-        MacroFileInit.swapFile(nextClipName);
-
-        macro.clear();
-        macro.addAll(new ArrayList<>(MacroRecorder.clipBuffer));
-        saveMacroToFile();
-
-        CyvForge.sendChatMessage("Clipped last " + macro.size() + " ticks to " + nextClipName);
+        ClipViewer.requestCapture();
     }
 
     public static void saveMacroToFile() {
@@ -114,6 +99,10 @@ public class CommandMacro extends CyvCommand {
     }
 
     public static void runMacro(String[] args) {
+        if (isRecording) {
+            CyvForge.sendChatMessage("Stop recording before running a macro.");
+            return;
+        }
         MacroFileInit.swapFile(CyvClientConfig.getString("currentMacro", "macro"));
         if (!Minecraft.getMinecraft().isSingleplayer()) {
             CyvForge.sendChatMessage("No permission to run macro.");
